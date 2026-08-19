@@ -27,10 +27,10 @@ def discount_reward(arrival_times, path, tasks_dict):
     return total_score
 
 
-def marginal_score(agent_id, agent_dict, candidate_task_id, tasks_dict):
-    bundle_i = agent_dict[agent_id].bundle
-    path_i = agent_dict[agent_id].path
-    agent_position = agent_dict[agent_id].position
+def marginal_score(agent_i, candidate_task_id, tasks_dict):
+    bundle_i = agent_i.bundle
+    path_i = agent_i.path
+    agent_position = agent_i.position
 
     if candidate_task_id in bundle_i:
         return (0.0, -1)

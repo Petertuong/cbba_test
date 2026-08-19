@@ -20,7 +20,7 @@ def scenario():
 def test_round_1_claims_highest_value_task(scenario):
     tasks_dict, agent_dict = scenario
 
-    added = bundle_construction(0, agent_dict, tasks_dict)
+    added = bundle_construction(agent_dict[0], tasks_dict)
 
     assert added is True
     assert agent_dict[0].bundle == [1]
@@ -30,9 +30,9 @@ def test_round_1_claims_highest_value_task(scenario):
 
 def test_round_2_inserts_task_before_existing_path(scenario):
     tasks_dict, agent_dict = scenario
-    bundle_construction(0, agent_dict, tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
 
-    bundle_construction(0, agent_dict, tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
 
     assert agent_dict[0].bundle == [1, 0]
     assert agent_dict[0].path == [0, 1]
@@ -41,10 +41,10 @@ def test_round_2_inserts_task_before_existing_path(scenario):
 
 def test_round_3_inserts_task_between_existing_path(scenario):
     tasks_dict, agent_dict = scenario
-    bundle_construction(0, agent_dict, tasks_dict)
-    bundle_construction(0, agent_dict, tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
 
-    bundle_construction(0, agent_dict, tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
 
     assert agent_dict[0].bundle == [1, 0, 2]
     assert agent_dict[0].path == [0, 2, 1]
@@ -54,10 +54,10 @@ def test_round_3_inserts_task_between_existing_path(scenario):
 
 def test_round_4_no_tasks_left_to_add(scenario):
     tasks_dict, agent_dict = scenario
-    bundle_construction(0, agent_dict, tasks_dict)
-    bundle_construction(0, agent_dict, tasks_dict)
-    bundle_construction(0, agent_dict, tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
+    bundle_construction(agent_dict[0], tasks_dict)
 
-    added = bundle_construction(0, agent_dict, tasks_dict)
+    added = bundle_construction(agent_dict[0], tasks_dict)
 
     assert added is False

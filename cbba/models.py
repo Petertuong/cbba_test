@@ -6,8 +6,8 @@ class Agent:
         self.path = []  # task id goes here
         self.winning_agent_list = [-1] * num_tasks
         self.winning_bid_list = [0.0] * num_tasks
-        self.topology = [[0] * num_agents ] * num_agents
-        self.timestamp_list = [-1] * num_agents
+        #paper assume no delay
+        self.timestamp_list = [-1] * num_agents #store the reception time (most up to date)
 
     def set_winner(self, j, agent_id, bid):
         self.winning_agent_list[j] = agent_id
@@ -26,3 +26,27 @@ class Task:
         self.position = position
         self.static_score = static_score
         self.discount_factor = discount_factor
+
+class Message:
+    def __init__(self, sender_id, winning_bid_list, winning_agent_list, timestamp_list, send_round):
+        self.sender_id = sender_id
+        self.winning_bid_list = winning_bid_list 
+        self.winning_agent_list = winning_agent_list
+        self.timestamp_list = timestamp_list
+        self.send_round = send_round
+
+class Records:
+    def __init__(self, converged, disconnected, T_c, N_min, D, comm_range):
+        self.converged =  converged
+        self.disconnected = disconnected
+        self.T_c = T_c
+        self.N_min = N_min
+        self.D = D 
+        self.comm_range = comm_range
+
+    def get_ratio(self):
+        if self.disconnected:
+            return None
+
+        return self.T_c/(self.N_min * self.D)
+

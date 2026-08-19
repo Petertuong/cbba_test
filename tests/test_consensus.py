@@ -2,6 +2,7 @@ import pytest
 
 from cbba import Agent
 from cbba.consensus import resolve_task
+from cbba.models import Message
 
 
 def make_agents(z_ij, y_ij, z_kj, y_kj, s_i, s_k):
@@ -14,6 +15,17 @@ def make_agents(z_ij, y_ij, z_kj, y_kj, s_i, s_k):
     agent_dict[1].winning_bid_list[0] = y_kj
     agent_dict[1].timestamp_list = list(s_k)
     return agent_dict
+
+
+def make_message(agent_dict, sender_id):
+    sender = agent_dict[sender_id]
+    return Message(
+        sender_id,
+        sender.winning_bid_list,
+        sender.winning_agent_list,
+        sender.timestamp_list,
+        send_round=0,
+    )
 
 
 T = [0, 0, 0, 0]   # i and k equally informed
@@ -65,8 +77,9 @@ CASES = [
 )
 def test_resolve_task_table(z_ij, y_ij, z_kj, y_kj, s_i, s_k, exp_z, exp_y):
     agent_dict = make_agents(z_ij, y_ij, z_kj, y_kj, s_i, s_k)
+    msg = make_message(agent_dict, sender_id=1)
 
-    resolve_task(0, 1, 0, agent_dict)
+    resolve_task(agent_dict[0], msg, 0)
 
     assert agent_dict[0].winning_agent_list[0] == exp_z
     assert agent_dict[0].winning_bid_list[0] == pytest.approx(exp_y)
