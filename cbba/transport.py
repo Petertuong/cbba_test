@@ -1,7 +1,7 @@
 # g[i][i] = 1 but will be ignored
 def deliver_message(messages, graph):
     inboxes = {i: [] for i in range(len(graph))}
-    
+
     for k in messages:
         if k is None:
             continue
@@ -10,3 +10,4 @@ def deliver_message(messages, graph):
                 inboxes[i].append(k)
 
     return inboxes
+

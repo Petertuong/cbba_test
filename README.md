@@ -3,19 +3,14 @@
 A from-scratch Python implementation of the Consensus-Based Bundle Algorithm
 (CBBA) from:
 
-> Choi, H.-L., Brunet, L., & How, J. P. (2009). *Consensus-Based Decentralized
-> Auctions for Robust Task Allocation.* IEEE Transactions on Robotics, 25(4).
+> Choi, H.-L., Brunet, L., & How, J. P. (2009). _Consensus-Based Decentralized
+> Auctions for Robust Task Allocation._ IEEE Transactions on Robotics, 25(4).
 
 **Purpose:** this is a learning project — the goal was to work through the
 paper closely enough to reimplement its two phases (greedy bundle
 construction and consensus-based conflict resolution) from first principles
 and convince myself the algorithm actually converges the way the paper
 claims.
-
-**Next step:** port this simulation (agents sharing one in-process dict) onto
-an actual distributed agent system, where each agent is its own process/node
-and the consensus messages travel over a real network transport instead of
-being direct Python calls.
 
 ## Structure
 
@@ -27,56 +22,55 @@ cbba/
   bundle.py     phase 1: greedy bundle construction (per agent)
   consensus.py  phase 2: consensus / conflict resolution (per agent pair)
   main.py       example 3-agent, 5-task scenario
+  transport.py
+  search_algo.py
 tests/
   test_bundle.py       phase 1 unit tests
   test_consensus.py    phase 2 decision-table coverage
   test_integration.py  full multi-agent convergence
 ```
 
-### Phase 1 — bundle construction ([bundle.py](cbba/bundle.py))
+# CBBA — Consensus-Based Bundle Algorithm
 
-Each agent greedily inserts whichever unclaimed task gives it the best
-marginal score into its path, up to a capacity `L_t`, bidding its own
-discounted-reward score for that task.
+Suppose we have multiple agents, in particular here are drones. We want to figure out a way for drones to communicate with each other, choose tasks that they have to do without a central server allocate for them, under some assumptions.
 
-### Phase 2 — consensus ([consensus.py](cbba/consensus.py))
+CBBA is basically the consensus algorithm. Utilizing auction and only rely on local situational awareness.
 
-When agent `i` receives agent `k`'s winner/bid lists, `resolve_task`
-implements the paper's action table (`update` / `reset` / leave alone)
-based on who each agent currently believes holds task `j`. Agents that
-aren't direct neighbors still converge because each agent also carries a
-timestamp vector `s`, gossiped alongside the bids, that says how recently
-it heard from every other agent — so stale claims get overruled even when
-they arrive secondhand through a relay agent.
+## Situational Awareness
 
-## Running the tests
+**Situational awareness** is the knowledge of the drone. And here, we only want it to rely on this knowledge to choose tasks to perform, that still can guarantee 50% optimality of SGA.
 
-```
-pip install pytest
-pytest tests/ -v
-```
+Those following knowledges are essential:
 
-### How the tests were passed
+- **Bundle `b_i`** — containing tasks it has to perform (in order of arrival time).
+- **Path `p_i`** — containing the optimized path of which the drone has to move to solve the tasks.
+  > Note that the optimization is not about the shortest path, but about prioritizing tasks that reward more score (more urgent). Although Discounted factor can steer the drone to choose the short path.
+- **`z_i`** — list of agent that won the bid of the task. Here I store it in the form of list, thus index is the task ID and the value is the agent ID that won that task.
+- **`y_i`** — list of highest bid made for that task. Here I store it in the form of list, thus index is the task ID and the value is the highest bid made for that task.
+- **`s_i`** — timestamp list. It stores the knowledge of the agent about the current round of other agents. Here index is the agent ID and value is the `current_round` of that agent.
 
-`pytest` isn't installable in the sandbox this was authored in (no network
-access, no writable venv), so the suite was verified in-session against the
-real source files using a small harness that reproduces pytest's
-`fixture` / `parametrize` / `approx` semantics well enough to execute the
-actual assertions. Final result: **32/32 passed**.
+## Choosing a Task
 
-| File | Cases | What it checks |
-|---|---|---|
-| `test_bundle.py` | 4 | single-agent greedy insertion into an empty/partial path, including reward values, over 4 rounds until the bundle is full |
-| `test_consensus.py` | 26 | every branch of the phase-2 decision table (all 17 rows of the paper's table, with extra cases where a row's condition can go either way — e.g. fresher timestamp alone vs. fresher timestamp *and* higher bid) |
-| `test_integration.py` | 2 | a 3-agent / 5-task scenario run to convergence: bundles end up conflict-free, all agents agree on every winner, and no agent exceeds its capacity `L_t` — including the case where agents 0 and 2 aren't direct neighbors and must reach agreement only through agent 1 as a relay |
+Choosing a task has to go through three stages:
 
-Anyone cloning this repo should just run `pytest tests/ -v` directly —
-that's the real, unmodified pytest run; the in-session harness was only a
-workaround for not having pytest available while writing the tests.
+1. **Constructing the bundle of task** — which mean we find the task that the agent can win the bid, and with highest possible reward, and construct the path that optimize the reward. The reward is calculated through scoring scheme.
+2. **Scoring scheme** — we calculate the reward based on time a drone has to take to travel to that task. However, it still doesn't mean the final result is the shortest path.
+3. **Consensus** — an agent can naively bid for a task and think it win the task. But if another agent found out that the task is already been claimed, this phase will help resolving the conflict. We follow the table in the paper and construct that table accordingly.
 
-## Example scenario
+## Messages
 
-[main.py](cbba/main.py) sets up 3 agents and 5 tasks with a topology where
-agent 1 sits between agents 0 and 2 (0 and 2 are not directly connected).
-`tests/test_integration.py` runs this exact scenario to convergence and
-asserts the result is conflict-free and consistent across all three agents.
+Then we started to define message, an essential part of communication.
+
+The CBBA guarantees that there are only three factors that should impact the decisions of an agent and optimality of the algorithm: `y_k`, `z_k`, `s_k` where `k` is the sender (producer of the message).
+
+A message is delivered through transport protocol, by checking if two agent have connection to each other and if they do, it will put the message in the receiver's inbox. The receiver will `consume_message` as define the program, mainly to resolve the conflict and update the `timestamp_list`.
+
+## Network Topology
+
+The transportation cannot happen without us finding out the topology of the network. Note that each agent has no knowledge of the topology.
+
+The topology here is calculated based on the distance between two agents, without weight, and the number of hops `k` between two agents is the multiplication factor `k` of `k * comm_range`.
+
+## Convergence
+
+The algorithm in combination, will run at most `D * N_min` time. And the paper guarantee convergence within that bound if we assume static topology. However, most of the case, convergence is reached a lot earlier.
