@@ -24,7 +24,6 @@ def make_message(agent_dict, sender_id):
         sender.winning_bid_list,
         sender.winning_agent_list,
         sender.timestamp_list,
-        send_round=0,
     )
 
 
