@@ -45,6 +45,7 @@ class CbbaAgentNode(Node):
         self.inbox = []
         self.stable_rounds = 0
         self.current_round = None  # number of the round we last ran
+        self.first_round = None    # first round we take part in (set when tasks arrive)
 
         self.create_subscription(TaskArray, TASKS_TOPIC, self.on_tasks, TASKS_QOS)
         self.create_subscription(CbbaMessage, MESSAGES_TOPIC, self.on_message, CBBA_QOS)
@@ -69,6 +70,10 @@ class CbbaAgentNode(Node):
             return
         self.tasks = tasks
         self.agent = Agent(self.agent_id, self.position, len(self.tasks), self.num_agents)
+        # start at the NEXT round boundary, not in the middle of the current round:
+        # all agents that get the tasks during the same round then start together
+        now = self.get_clock().now().nanoseconds * 1e-9
+        self.first_round = int(now // self.round_period) + 1
         self.get_logger().info('received %d tasks, starting CBBA' % len(self.tasks))
 
     def on_message(self, ros_msg):
@@ -92,7 +97,7 @@ class CbbaAgentNode(Node):
             self.on_round(rnd)
 
     def on_round(self, rnd):
-        if self.agent is None:
+        if self.agent is None or rnd < self.first_round:
             return
         agent = self.agent
         before = (list(agent.bundle), list(agent.winning_agent_list))
