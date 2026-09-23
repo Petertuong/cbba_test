@@ -1,6 +1,15 @@
 from .models import Message
 
 
+#does bid y_new by agent z_new beat bid y_old by agent z_old?
+#a higher bid wins; on an exactly equal bid the LOWER agent id wins,
+#otherwise two agents with the same bid would both keep the task forever
+def outbids(y_new, z_new, y_old, z_old):
+    if y_new != y_old:
+        return y_new > y_old
+    return z_old != -1 and z_new < z_old
+
+
 def resolve_task(agent_i, msg, j):
 
     i = agent_i.id
@@ -13,9 +22,12 @@ def resolve_task(agent_i, msg, j):
     s_k = msg.timestamp_list
     s_i = agent_i.timestamp_list
 
+    #the paper's "y_kj > y_ij", with ties broken by agent id
+    sender_bid_wins = outbids(y_kj, z_kj, y_ij, z_ij)
+
     def receiver_action_k():
         if z_ij == i:
-            if y_kj > y_ij:
+            if sender_bid_wins:
                 update(agent_i, j, msg)
 
         elif z_ij == k or z_ij == -1:
@@ -23,7 +35,7 @@ def resolve_task(agent_i, msg, j):
 
         else:
             m = z_ij
-            if s_k[m] > s_i[m] or y_kj > y_ij:
+            if s_k[m] > s_i[m] or sender_bid_wins:
                 update(agent_i, j, msg)
 
     def receiver_action_i():
@@ -41,7 +53,7 @@ def resolve_task(agent_i, msg, j):
     def receiver_action_m():
         if z_ij == i:
             m = z_kj
-            if s_k[m] > s_i[m] and y_kj > y_ij:
+            if s_k[m] > s_i[m] and sender_bid_wins:
                 update(agent_i, j, msg)
 
         elif z_ij == k:
@@ -68,7 +80,7 @@ def resolve_task(agent_i, msg, j):
             if s_k[m] > s_i[m] and s_k[n] > s_i[n]:
                 update(agent_i, j, msg)
 
-            elif s_k[m] > s_i[m] and y_kj > y_ij:
+            elif s_k[m] > s_i[m] and sender_bid_wins:
                 update(agent_i, j, msg)
 
             elif s_k[n] > s_i[n] and s_i[m] > s_k[m]:

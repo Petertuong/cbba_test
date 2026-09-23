@@ -66,6 +66,12 @@ CASES = [
     ("r15_none_over_k",           1, 5.0, -1, 0.0, T, T, -1, 0.0),
     ("r16_none_over_m_fresher",   2, 5.0, -1, 0.0, T, TK, -1, 0.0),
     ("r17_none_over_none",       -1, 0.0, -1, 0.0, T, T, -1, 0.0),
+
+    # equal bids: the lower agent id wins
+    ("tie_r1_i_lower_keeps",       0, 5.0, 1, 5.0, T, T, 0, 5.0),   # i=0 < k=1
+    ("tie_r3_k_lower_than_m",      2, 5.0, 1, 5.0, T, T, 1, 5.0),   # k=1 < m=2
+    ("tie_r9_i_lower_than_m",      0, 5.0, 2, 5.0, T, TK, 0, 5.0),  # i=0 < m=2
+    ("tie_r12_m_lower_than_n",     3, 5.0, 2, 5.0, T, [0, 0, 9, 0], 2, 5.0),  # m=2 < n=3
 ]
 
 
