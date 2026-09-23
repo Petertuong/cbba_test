@@ -146,7 +146,8 @@ def consume_message(agent_i, msg):
     for j in range(len(agent_i.winning_agent_list)):
         resolve_task(agent_i, msg, j)
 
-    agent_i.timestamp_list[msg.sender_id] = msg.send_round
+    #the sender stamped its own entry with the round it sent in (see produce_message)
+    agent_i.timestamp_list[msg.sender_id] = msg.timestamp_list[msg.sender_id]
 
     #update timestamp based on which agent have higher vector
     for m in range(len(agent_i.timestamp_list)):
@@ -157,14 +158,16 @@ def consume_message(agent_i, msg):
 
 def produce_message(agent_k, current_round):
     k_id = agent_k.id
+
+    #stamp own entry BEFORE copying, so the message carries the current round
+    #for the sender (copying first would send the previous round -> stale by one)
+    agent_k.timestamp_list[k_id] = current_round
+
     winning_bid_list = agent_k.winning_bid_list.copy()
     winning_agent_list = agent_k.winning_agent_list.copy()
     timestamp_list = agent_k.timestamp_list.copy()
-    agent_k.timestamp_list[k_id] = current_round
-
-    send_round = agent_k.timestamp_list[k_id]
 
     msg = Message(k_id, winning_bid_list,
-            winning_agent_list, timestamp_list, send_round)
+            winning_agent_list, timestamp_list)
 
     return msg

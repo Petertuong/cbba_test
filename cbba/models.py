@@ -28,12 +28,12 @@ class Task:
         self.discount_factor = discount_factor
 
 class Message:
-    def __init__(self, sender_id, winning_bid_list, winning_agent_list, timestamp_list, send_round):
+    #the send time is timestamp_list[sender_id], so it needs no field of its own
+    def __init__(self, sender_id, winning_bid_list, winning_agent_list, timestamp_list):
         self.sender_id = sender_id
         self.winning_bid_list = winning_bid_list 
         self.winning_agent_list = winning_agent_list
         self.timestamp_list = timestamp_list
-        self.send_round = send_round
 
 class Records:
     def __init__(self, converged, disconnected, T_c, N_min, D, comm_range):
