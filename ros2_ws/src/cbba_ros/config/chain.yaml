@@ -1,0 +1,18 @@
+# Assumption 1 scenario: static agents, static task set, everyone hears everyone.
+# Same world as tests/test_integration.py::make_world, so the ROS result can be
+# compared against the offline simulator.
+max_bundle: 2          # L_t
+round_period: 0.5      # seconds per CBBA round (timer tick)
+comm_range: 500.0        # chain topology 0-1-2 (agent 0 and 2 need a relay)
+
+agents:
+  - {id: 0, position: [0.0, 0.0]}
+  - {id: 1, position: [500.0, 0.0]}
+  - {id: 2, position: [1000.0, 0.0]}
+
+tasks:
+  - {id: 0, position: [100.0, 100.0], static_score: 1.0, discount_factor: 0.95}
+  - {id: 1, position: [400.0, 200.0], static_score: 1.0, discount_factor: 0.95}
+  - {id: 2, position: [600.0, 100.0], static_score: 1.0, discount_factor: 0.95}
+  - {id: 3, position: [900.0, 300.0], static_score: 1.0, discount_factor: 0.95}
+  - {id: 4, position: [200.0, 800.0], static_score: 1.0, discount_factor: 0.95}
