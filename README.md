@@ -25,6 +25,8 @@ cbba/
   transport.py
   search_algo.py
 tests/
+ros2_ws/        ROS 2 Jazzy wrapper (one node per agent) -- see ros2_ws/README.md
+INTEGRATION.md  how other teams (ROS, Unity) and their AI agents connect to this component
   test_bundle.py       phase 1 unit tests
   test_consensus.py    phase 2 decision-table coverage
   test_integration.py  full multi-agent convergence
