@@ -25,7 +25,12 @@ colcon build --symlink-install
 source install/setup.bash
 ros2 launch cbba_ros cbba.launch.py
 ros2 launch cbba_ros cbba.launch.py scenario:=$PWD/src/cbba_ros/config/chain.yaml
+ros2 launch cbba_ros demo.launch.py     # RViz view, 5 s rounds
 ```
+
+Before launching, check nothing is still running (`ros2 node list --no-daemon`
+must be empty): every ROS program on the machine shares topics. To run a test
+next to another system, isolate it with `export ROS_DOMAIN_ID=42`.
 
 Thanks to `--symlink-install`, edits to `cbba/*.py` and to the nodes are picked up
 on the next launch without rebuilding. Rebuild only when you change a `.msg`
@@ -44,18 +49,19 @@ ros2 param get /agent_0/cbba_agent comm_range
 
 The library is a lock-step simulator (`cbba/main.py`): all agents build,
 then all send, then all receive. On ROS each agent is its own process and
-a round is one tick of the agent's timer (`round_period`):
+a round is one `round_period` of the shared clock:
 
 ```
 on /cbba/messages   -> append to inbox (drop own messages and out-of-range senders)
-every round_period  -> consume_message(inbox...) ; release() ; build_bundle() ;
+each new round      -> consume_message(msgs from earlier rounds) ; release() ; build_bundle() ;
                        produce_message(now) -> publish /cbba/messages ; publish /cbba/plans
 ```
 
-* **Timestamps `s_i`** use each agent's ROS clock (seconds) instead of a round
-  counter. The consensus table only ever compares `s_k[m]` with `s_i[m]`, and
-  both of those values were stamped by agent `m`. So clocks do **not** need to
-  be synchronised across machines; each agent's clock only has to be monotonic.
+* **Synchronous rounds.** Round `r` starts at the same wall-clock instant for
+  every agent (`r = clock time // round_period`), and a message sent in round
+  `r` is only consumed in round `r+1`, even if it arrives earlier. Timestamps
+  `s_i` are round numbers, as in the offline simulator. Agents therefore need a
+  shared clock: automatic on one machine; across machines use NTP/chrony.
 * **Communication range:** DDS delivers every message to every subscriber,
   however far apart they are. A limited range is simulated in the receiver
   (`comm_range` parameter, using `sender_position` in the message).
@@ -108,10 +114,6 @@ For every step:
 
 Confirmed by running them:
 
-* **No tie-breaking.** With two equal bids for a task, both agents keep it
-  forever (two agents at the same spot, one task: `z=[0]` vs `z=[1]`). The
-  paper breaks ties by the lower agent id; `consensus.py` compares only
-  `y_kj > y_ij`.
 * **The score uses distance as time.** `0.95 ** distance` is about 4e-112 at
   5 km and exactly `0.0` beyond about 14 km, so the agent never bids. Decide on
   units with the Unity team (metres?) and use `tau = distance / speed`.

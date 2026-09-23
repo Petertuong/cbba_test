@@ -1,10 +1,10 @@
 """Stand-in for the environment (later: Unity / the environment team).
 Publishes the task list once, latched."""
-from geometry_msgs.msg import Point
 from rclpy.node import Node
 
 from cbba_interfaces.msg import Task, TaskArray
 
+from .conversions import tuple_to_point
 from .qos import TASKS_QOS, TASKS_TOPIC
 from .scenario import load_scenario
 from .spin import spin_node
@@ -20,8 +20,7 @@ class TaskManagerNode(Node):
         msg = TaskArray()
         for t in scenario['tasks']:
             msg.tasks.append(Task(id=t['id'],
-                                  position=Point(x=float(t['position'][0]),
-                                                 y=float(t['position'][1])),
+                                  position=tuple_to_point(t['position']),  # [x, y, z] from yaml
                                   static_score=float(t['static_score']),
                                   discount_factor=float(t['discount_factor'])))
 

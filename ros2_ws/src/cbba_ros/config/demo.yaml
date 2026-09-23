@@ -1,9 +1,10 @@
 # Positions are [x, y, z]. z = 0 keeps this world identical to the 2D offline test.
+# Demo copy of scenario.yaml with slow rounds, for watching in RViz.
 # Assumption 1 scenario: static agents, static task set, everyone hears everyone.
 # Same world as tests/test_integration.py::make_world, so the ROS result can be
 # compared against the offline simulator.
 max_bundle: 2          # L_t
-round_period: 0.5      # seconds per CBBA round (timer tick)
+round_period: 5.0      # slow: one CBBA round every 5 s, so you can watch the consensus phase
 comm_range: -1.0       # -1 = unlimited; >0 = drop messages from agents farther than this
 
 agents:

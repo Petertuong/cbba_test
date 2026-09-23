@@ -14,6 +14,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
         ('share/' + package_name + '/config', glob('config/*.yaml')),
+        ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -26,6 +27,7 @@ setup(
             'agent = cbba_ros.agent_node:main',
             'task_manager = cbba_ros.task_manager_node:main',
             'monitor = cbba_ros.monitor_node:main',
+            'visualizer = cbba_ros.visualizer_node:main',
         ],
     },
 )
