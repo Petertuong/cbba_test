@@ -80,13 +80,13 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 
 ## 7. Entry and exit criteria
 
-- **Entry:** the code builds, and the test environment installs from `webapp/requirements.txt`.
+- **Entry:** the code builds, and the test environment installs from `webapp/requirements-dev.txt` (the server alone needs only `webapp/requirements.txt`).
 - **Exit (per change):** every level green in the pipeline, no open defect of high severity, and core coverage not lower than before (currently 81% core, 100% web backend).
 
 ## 8. How to run
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e . -r webapp/requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -e . -r webapp/requirements-dev.txt
 .venv/bin/playwright install chromium
 env -u PYTHONPATH .venv/bin/python -m pytest tests                       # core
 cd webapp && env -u PYTHONPATH ../.venv/bin/python -m pytest tests       # game, API, end-to-end

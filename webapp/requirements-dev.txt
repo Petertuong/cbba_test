@@ -1,0 +1,6 @@
+# everything for running the tests (includes the server requirements)
+-r requirements.txt
+httpx==0.28.*
+pytest==8.*
+pytest-cov==6.*
+pytest-playwright==0.6.*

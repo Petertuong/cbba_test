@@ -18,7 +18,7 @@ From the repository root:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e . -r webapp/requirements.txt
+.venv/bin/pip install -e . -r webapp/requirements-dev.txt   # server + test tools
 cd webapp && env -u PYTHONPATH ../.venv/bin/uvicorn app.main:app --reload
 ```
 

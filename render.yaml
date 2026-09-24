@@ -1,0 +1,13 @@
+# Render blueprint: deploys the CBBA Car Race web app from this repo.
+# https://render.com -> New -> Blueprint -> pick this repository.
+services:
+  - type: web
+    name: cbba-car-race
+    runtime: python
+    plan: free
+    buildCommand: pip install -e . -r webapp/requirements.txt
+    startCommand: cd webapp && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/config
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7

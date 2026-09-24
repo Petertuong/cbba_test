@@ -22,7 +22,7 @@ stages:
         steps:
           - task: UsePythonVersion@0
             inputs: { versionSpec: '3.12' }
-          - script: pip install -e . -r webapp/requirements.txt
+          - script: pip install -e . -r webapp/requirements-dev.txt
             displayName: Install
           - script: |
               python -m pytest tests \
@@ -52,7 +52,7 @@ stages:
           - task: UsePythonVersion@0
             inputs: { versionSpec: '3.12' }
           - script: |
-              pip install -e . -r webapp/requirements.txt
+              pip install -e . -r webapp/requirements-dev.txt
               playwright install --with-deps chromium
             displayName: Install app and browser
           - script: |
