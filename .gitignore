@@ -7,3 +7,6 @@ venv/
 
 # playwright / pytest output
 test-results/
+*.egg-info/
+.coverage
+results/

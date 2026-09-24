@@ -16,18 +16,26 @@ claims.
 
 ```
 cbba/
-  models.py     Agent / Task data classes
-  geometry.py   distance helper
-  scoring.py    path insertion cost, discounted reward, marginal score
-  bundle.py     phase 1: greedy bundle construction (per agent)
-  consensus.py  phase 2: consensus / conflict resolution (per agent pair)
-  main.py       example 3-agent, 5-task scenario
-  transport.py
-  search_algo.py
+  models.py       Agent / Task data classes
+  geometry.py     distance helper (2D or 3D)
+  scoring.py      path insertion cost, discounted reward, marginal score, points per agent
+  bundle.py       phase 1: greedy bundle construction (per agent)
+  consensus.py    phase 2: consensus / conflict resolution (per agent pair)
+  simulation.py   lock-step rounds until agreement, with a per-round history
+  transport.py    message delivery over a communication graph
+  search_algo.py  communication graph and network depth (BFS)
+  main.py         experiment: convergence for several communication ranges
 tests/
   test_bundle.py       phase 1 unit tests
   test_consensus.py    phase 2 decision-table coverage
   test_integration.py  full multi-agent convergence
+  test_simulation.py   simulate(), points, agent speed
+  test_tie_break.py    equal bids go to the lower agent id
+  test_geometry.py     2D / 3D distance
+  test_search_algo.py  communication graph and BFS
+webapp/              CBBA Car Race: a web game built on the core (see webapp/README.md)
+docs/TEST_PLAN.md    test levels, techniques, acceptance scenarios, defects found
+azure-pipelines.yml  CI: every test level on each push
 ```
 
 # CBBA — Consensus-Based Bundle Algorithm

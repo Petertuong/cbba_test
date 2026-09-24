@@ -46,6 +46,21 @@ def test_invalid_input_is_rejected(name, body):
     assert r.status_code == 422, name
 
 
+@pytest.mark.parametrize('name,body', [
+    ('exactly 2 cars', with_(cars=[{'x': 0, 'y': 0}, {'x': 1, 'y': 1}])),
+    ('exactly 5 cars', with_(cars=[{'x': 100 * i, 'y': 1} for i in range(5)])),
+    ('exactly 1 task', with_(tasks=[{'x': 5, 'y': 5, 'value': 50}])),
+    ('exactly 10 tasks', with_(tasks=[{'x': 90 * i, 'y': 300, 'value': 50} for i in range(10)])),
+    ('lowest task value', with_(tasks=[{'x': 5, 'y': 5, 'value': 1}])),
+    ('highest task value', with_(tasks=[{'x': 5, 'y': 5, 'value': 100}])),
+    ('map corners', with_(cars=[{'x': 0, 'y': 0}, {'x': 1000, 'y': 600}],
+                          tasks=[{'x': 1000, 'y': 0, 'value': 50}])),
+    ('guess the last car', with_(guess=1)),
+])
+def test_values_on_the_limits_are_accepted(name, body):
+    assert client.post('/api/games', json=body).status_code == 200, name
+
+
 def test_rejection_says_what_is_wrong():
     r = client.post('/api/games', json=with_(guess=5))
     assert 'guess must be the index of one of the cars (0 to 1)' in r.text
