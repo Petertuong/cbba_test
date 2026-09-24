@@ -16,6 +16,18 @@ STATIC = Path(__file__).resolve().parent.parent / 'static'
 app = FastAPI(title='CBBA Car Race')
 
 
+@app.middleware('http')
+async def always_check_for_new_frontend(request, call_next):
+    """Without caching instructions a browser may reuse an old app.js with a new
+    index.html after a deploy (a page with buttons its script doesn't know).
+    'no-cache' makes the browser ask every time; unchanged files still come back
+    as a cheap '304 Not Modified'."""
+    response = await call_next(request)
+    if not request.url.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache'
+    return response
+
+
 class Car(BaseModel):
     x: float = Field(ge=0, le=game.MAP_WIDTH)
     y: float = Field(ge=0, le=game.MAP_HEIGHT)

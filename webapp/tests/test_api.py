@@ -73,6 +73,14 @@ def test_config_matches_the_game_rules():
     assert cfg['cars'] == {'min': 2, 'max': 5}
 
 
+@pytest.mark.parametrize('path', ['/', '/static/app.js', '/static/style.css'])
+def test_browsers_must_check_for_a_new_frontend(path):
+    # without this, a browser can mix a cached old app.js with a new page after a deploy
+    r = client.get(path)
+    assert r.status_code == 200
+    assert r.headers.get('cache-control') == 'no-cache'
+
+
 def test_frontend_is_served():
     r = client.get('/')
     assert r.status_code == 200

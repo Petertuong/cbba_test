@@ -111,7 +111,8 @@ def test_next_mission_starts_where_the_cars_finished(game: Page):
     play_example_mission(game)
     game.get_by_test_id('next-mission').click()
     expect(game.get_by_test_id('result')).to_be_hidden()
-    expect(game.get_by_test_id('phase')).to_have_text('Mission 2 · 3 cars · 0 tasks · pick a car to guess')
+    expect(game.get_by_test_id('phase')).to_have_text(
+        'Mission 2 · the cars are waiting where they finished: click the map to place new tasks')
     # a car is drawn as a 40 m wide box centred on its position
     expect(game.get_by_test_id('car-1').locator('rect')).to_have_attribute('x', '230')
     expect(game.get_by_test_id('car-1').locator('rect')).to_have_attribute('y', '327')

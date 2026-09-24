@@ -16,7 +16,7 @@
 | Unit | bundle building, the consensus decision table, tie-breaking, distance, scoring | `tests/` | pytest | 58 (whole core suite) |
 | Integration | several agents running full rounds until agreement; invariants hold at the end | `tests/test_integration.py`, `tests/test_simulation.py` | pytest | included above |
 | Component | game rules (who wins, points formula, limits, where cars end) without HTTP | `webapp/tests/test_game.py` | pytest | 10 |
-| API | the HTTP contract: valid games, rejected input, error messages | `webapp/tests/test_api.py` | pytest + FastAPI TestClient | 24 |
+| API | the HTTP contract: valid games, rejected input, error messages, caching headers | `webapp/tests/test_api.py` | pytest + FastAPI TestClient | 27 |
 | End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 15 |
 
 All levels are run with pytest before every commit (commands in section 8).
@@ -84,6 +84,8 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | D6 | The empty result card showed before any game (a CSS `display` rule overrode the `hidden` attribute) | manual exploratory test in the browser | global `[hidden]` rule; AC1 now asserts the card is hidden. Re-introducing the bug makes AC1 fail |
 | D7 | "Skip animation" was unreachable: it sat inside the card hidden during the animation | code review | button moved next to the round status; AC9 |
 | D8 | Tests fail in shells that source ROS 2 (ROS's pytest plugin needs `yaml`) | local run | run with `env -u PYTHONPATH` |
+| D9 | After a deploy, a browser could combine a cached old `app.js` with the new page: no leaderboard, and "Next mission" did nothing | reported by a user on the live site right after a release; the server sent no caching instructions | server sends `Cache-Control: no-cache` for the page and its files; `test_browsers_must_check_for_a_new_frontend` |
+| D10 | When every task was done, the next mission looked frozen (empty map, disabled button, no hint) | same user report | the status line tells the player to place new tasks; AC10 asserts the message |
 
 ## 7. Entry and exit criteria
 

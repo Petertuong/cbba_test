@@ -156,8 +156,12 @@ function refresh() {
   $('run').disabled = !ready || !editing();
   $('map').classList.toggle('locked', !editing());
   if (editing()) {
-    $('phase').textContent = `Mission ${state.mission} · ${state.cars.length} cars · ${state.tasks.length} tasks` +
-      (state.guess === null ? ' · pick a car to guess' : ` · you picked Car ${state.guess + 1}`);
+    // a new mission with every task done looks frozen, so say what to do next
+    const waiting = campaignStarted() && state.tasks.length === 0;
+    $('phase').textContent = waiting
+      ? `Mission ${state.mission} · the cars are waiting where they finished: click the map to place new tasks`
+      : `Mission ${state.mission} · ${state.cars.length} cars · ${state.tasks.length} tasks` +
+        (state.guess === null ? ' · pick a car to guess' : ` · you picked Car ${state.guess + 1}`);
     draw();
   }
 }
