@@ -15,9 +15,9 @@
 |---|---|---|---|---|
 | Unit | bundle building, the consensus decision table, tie-breaking, distance, scoring | `tests/` | pytest | 58 (whole core suite) |
 | Integration | several agents running full rounds until agreement; invariants hold at the end | `tests/test_integration.py`, `tests/test_simulation.py` | pytest | included above |
-| Component | game rules (who wins, points formula, limits) without HTTP | `webapp/tests/test_game.py` | pytest | 8 |
+| Component | game rules (who wins, points formula, limits, where cars end) without HTTP | `webapp/tests/test_game.py` | pytest | 10 |
 | API | the HTTP contract: valid games, rejected input, error messages | `webapp/tests/test_api.py` | pytest + FastAPI TestClient | 24 |
-| End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 10 |
+| End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 15 |
 
 All levels are run with pytest before every commit (commands in section 8).
 
@@ -50,7 +50,12 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | AC7 | **Given** a task value outside 1-100, **when** I place a task, **then** it is refused with a reason | `test_invalid_task_value_is_refused` |
 | AC8 | **Given** the server rejects a game, **when** I start the race, **then** I see why | `test_server_rejection_is_shown_to_the_player` |
 | AC9 | **Given** the race animation is running, **when** I press Skip, **then** I go straight to the result | `test_animation_plays_rounds_and_can_be_skipped` |
-| AC10 | **Given** a finished race, **when** I choose to play again, **then** my layout and guess are kept | `test_play_again_keeps_the_layout` |
+| AC10 | **Given** a finished mission, **when** I start the next one, **then** each car waits where it finished and the completed tasks are gone | `test_next_mission_starts_where_the_cars_finished` |
+| AC11 | **Given** more tasks than the cars can take, **when** the next mission starts, **then** the unassigned tasks are still on the map | `test_unassigned_tasks_wait_for_the_next_mission` |
+| AC12 | **Given** a finished mission, **then** the leaderboard ranks the cars by tasks done, then points, and shows how many of my guesses were right | `test_leaderboard_after_one_mission` |
+| AC13 | **Given** several missions, **then** the leaderboard adds them up, and cars with equal tasks are ordered by points | `test_leaderboard_adds_up_over_missions` |
+| AC14 | **Given** a game in progress, **when** I try to add or remove a car, **then** I am told the cars stay fixed | `test_cars_are_fixed_during_a_game` |
+| AC15 | **Given** a game in progress, **when** I press New game, **then** the map and leaderboard are reset | `test_new_game_resets_everything` |
 
 ## 5. Traceability: requirement → tests
 
@@ -64,6 +69,8 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | R6 The player learns whether the guess was right | `test_wrong_guess_is_reported`, AC2, AC3 |
 | R7 Agents converge on the known allocation | `test_simulate_reaches_the_known_allocation`, `test_convergence_invariants` |
 | R8 Information crosses at most one hop per round | `test_one_hop_per_round`, `test_multi_hop_network_needs_more_rounds` |
+| R9 After a mission, a car waits at its last task (or where it started if it got none) | `test_cars_end_at_their_last_task_or_stay_put`, `test_end_position_follows_the_route_order`, AC10 |
+| R10 The leaderboard adds up tasks, points and wins over all missions of a game | AC12, AC13 |
 
 ## 6. Defects found
 

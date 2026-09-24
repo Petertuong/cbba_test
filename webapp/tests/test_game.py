@@ -53,6 +53,20 @@ def test_a_car_never_takes_more_than_the_limit():
     assert all(len(p) <= game.TASKS_PER_CAR for p in result['paths'])
 
 
+def test_cars_end_at_their_last_task_or_stay_put():
+    # car 0 takes the nearby task and ends there; car 1 gets nothing and doesn't move
+    result = game.play(cars=[(100, 100), (900, 500)], tasks=[(150, 100, 50)], guess=0)
+    assert result['end_positions'] == [[150, 100], [900, 500]]
+
+
+def test_end_position_follows_the_route_order():
+    # the last task in the PATH (visit order) is where the car stops
+    result = game.play(cars=[(0, 300), (1000, 0)],
+                       tasks=[(100, 300, 50), (200, 300, 50)], guess=0)
+    assert result['paths'][0] == [0, 1]
+    assert result['end_positions'][0] == [200, 300]
+
+
 def test_round_one_can_show_conflicts_that_later_resolve():
     # both cars want the valuable middle task at first
     result = game.play(cars=[(400, 300), (600, 300)],

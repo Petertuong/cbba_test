@@ -83,6 +83,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); out
 .scores tr.best td { font-weight: 700; }
 .scores i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 6px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.row .primary { flex: 1 1 auto; }
+.small { font-size: 13px; }
 .rules ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
 .rules b { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

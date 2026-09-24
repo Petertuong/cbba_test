@@ -21,7 +21,8 @@ def test_valid_game_returns_the_full_result():
     r = client.post('/api/games', json=VALID)
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {'rounds', 'converged', 'paths', 'scores', 'winners', 'guess', 'correct'}
+    assert set(body) == {'rounds', 'converged', 'paths', 'end_positions',
+                         'scores', 'winners', 'guess', 'correct'}
     assert body['correct'] is True
     assert len(body['scores']) == 2
     assert body['rounds'][0]['bids'][0]['bundle'] == [0]

@@ -52,8 +52,19 @@
             <tbody id="scoreboard" data-testid="scoreboard"></tbody>
           </table>
           <div class="row">
-            <button type="button" class="ghost" id="again" data-testid="again">Edit and play again</button>
+            <button type="button" class="primary" id="next-mission" data-testid="next-mission">Next mission</button>
+            <button type="button" class="ghost" id="new-game" data-testid="new-game">New game</button>
           </div>
+          <p class="muted small">Next mission: each car waits where it finished, completed tasks disappear, and unassigned tasks stay. Add new tasks and guess again.</p>
+        </section>
+
+        <section class="card" id="leaderboard" data-testid="leaderboard" hidden>
+          <h2>Leaderboard</h2>
+          <p class="muted" id="board-summary" data-testid="board-summary"></p>
+          <table class="scores">
+            <thead><tr><th>#</th><th>Car</th><th class="num">Tasks</th><th class="num">Points</th><th class="num">Wins</th></tr></thead>
+            <tbody id="board" data-testid="board"></tbody>
+          </table>
         </section>
 
         <section class="card rules">

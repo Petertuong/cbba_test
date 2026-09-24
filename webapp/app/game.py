@@ -28,11 +28,16 @@ def play(cars, tasks, guess):
     best = max(scores)
     # a tie for first place is possible (e.g. two cars that both earn nothing)
     winners = [i for i, s in enumerate(scores) if s == best]
+    paths = [agents[i].path for i in range(len(cars))]
+    # where each car waits for the next mission: its last task, or its start if it got none
+    end_positions = [list(tasks[path[-1]][:2]) if path else list(cars[i])
+                     for i, path in enumerate(paths)]
     return {
         'rounds': [{'bids': strip(r['bids']), 'agreed': strip(r['agreed'])}
                    for r in result['rounds']],
         'converged': result['converged'],
-        'paths': [agents[i].path for i in range(len(cars))],
+        'paths': paths,
+        'end_positions': end_positions,
         'scores': scores,
         'winners': winners,
         'guess': guess,

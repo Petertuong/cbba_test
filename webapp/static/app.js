@@ -7,14 +7,22 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 const COLOR_VARS = ['--c0', '--c1', '--c2', '--c3', '--c4'];
 const LIMITS = { cars: 5, tasks: 10 };
 
-const state = {
-  // example layout so the page is playable straight away
+// example layout so the page is playable straight away
+const example = () => ({
   cars: [{ x: 120, y: 480 }, { x: 520, y: 110 }, { x: 880, y: 470 }],
   tasks: [
     { x: 250, y: 340, value: 40 }, { x: 430, y: 290, value: 90 }, { x: 700, y: 200, value: 30 },
     { x: 820, y: 330, value: 60 }, { x: 560, y: 520, value: 100 },
   ],
+});
+
+const state = {
+  ...example(),
   guess: null,
+  // campaign: several missions with the same cars; the leaderboard adds them up
+  mission: 1,
+  board: null,     // per car {tasks, points, wins}; null until the first mission ends
+  guesses: { right: 0, total: 0 },
   tool: 'car',
   config: { car_speed: 10, discount: 0.98 },
   result: null,
@@ -81,6 +89,8 @@ function draw(view = {}) {
 // ----------------------------------------------------------------- editing
 
 function editing() { return state.result === null; }
+function campaignStarted() { return state.board !== null; }
+const CARS_FIXED = 'The cars stay the same for the whole game, so the leaderboard is fair. Press New game to change them.';
 
 function setTool(tool) {
   state.tool = tool;
@@ -105,6 +115,7 @@ function onMapClick(evt) {
   if (hit) return removeItem(hit.dataset.kind, +hit.dataset.index);
   const p = toMap(evt);
   if (state.tool === 'car') {
+    if (campaignStarted()) return showError(CARS_FIXED);
     if (state.cars.length >= LIMITS.cars) return showError(`At most ${LIMITS.cars} cars.`);
     state.cars.push(p);
   } else {
@@ -118,6 +129,7 @@ function onMapClick(evt) {
 
 function removeItem(kind, i) {
   if (kind === 'car') {
+    if (campaignStarted()) return showError(CARS_FIXED);
     state.cars.splice(i, 1);
     // keep the guess pointing at the same car
     if (state.guess === i) state.guess = null;
@@ -144,7 +156,7 @@ function refresh() {
   $('run').disabled = !ready || !editing();
   $('map').classList.toggle('locked', !editing());
   if (editing()) {
-    $('phase').textContent = `${state.cars.length} cars · ${state.tasks.length} tasks` +
+    $('phase').textContent = `Mission ${state.mission} · ${state.cars.length} cars · ${state.tasks.length} tasks` +
       (state.guess === null ? ' · pick a car to guess' : ` · you picked Car ${state.guess + 1}`);
     draw();
   }
@@ -240,6 +252,7 @@ function drive(result, alive) {
 
 function finish(result) {
   state.runId++;  // stop any animation still running
+  if (!result.recorded) { result.recorded = true; recordMission(result); }
   draw({ snap: result.paths.map(p => ({ bundle: p, path: p })) });
   const names = result.winners.map(i => `Car ${i + 1}`);
   const winnerText = names.length > 1 ? `${names.join(' and ')} tie for first` : `${names[0]} wins`;
@@ -259,6 +272,59 @@ function finish(result) {
   $('result').hidden = false;
 }
 
+// -------------------------------------------------------------- campaign
+
+function recordMission(result) {
+  if (!state.board) state.board = state.cars.map(() => ({ tasks: 0, points: 0, wins: 0 }));
+  result.paths.forEach((path, i) => {
+    state.board[i].tasks += path.length;
+    state.board[i].points += result.scores[i];
+    if (result.winners.includes(i)) state.board[i].wins += 1;
+  });
+  state.guesses.total += 1;
+  if (result.correct) state.guesses.right += 1;
+  renderBoard();
+}
+
+// most tasks first; points, then car number, break ties
+function renderBoard() {
+  const box = $('leaderboard');
+  if (!state.board) { box.hidden = true; return; }
+  const order = state.board.map((b, i) => ({ ...b, car: i }))
+    .sort((a, b) => b.tasks - a.tasks || b.points - a.points || a.car - b.car);
+  $('board').innerHTML = order.map((b, rank) => `
+    <tr data-testid="board-row-${rank + 1}">
+      <td>${rank + 1}</td>
+      <td><i style="background:${carColor(b.car)}"></i>Car ${b.car + 1}</td>
+      <td class="num">${b.tasks}</td><td class="num">${b.points.toFixed(2)}</td><td class="num">${b.wins}</td>
+    </tr>`).join('');
+  const missions = state.guesses.total;
+  $('board-summary').textContent = `${missions} mission${missions === 1 ? '' : 's'} played · your guesses: ${state.guesses.right} of ${missions} right`;
+  box.hidden = false;
+}
+
+// cars wait where they finished; completed tasks go, unassigned ones stay
+function nextMission() {
+  const r = state.result, done = new Set(r.paths.flat());
+  state.runId++;
+  state.cars = r.end_positions.map(([x, y]) => ({ x, y }));
+  state.tasks = state.tasks.filter((_, j) => !done.has(j));
+  state.mission += 1;
+  state.guess = null; state.result = null;
+  $('result').hidden = true; showError('');
+  setTool('task');
+  refresh();
+}
+
+function newGame() {
+  state.runId++;
+  Object.assign(state, example(), { guess: null, result: null, mission: 1, board: null, guesses: { right: 0, total: 0 } });
+  $('result').hidden = true; showError('');
+  setTool('car');
+  renderBoard();
+  refresh();
+}
+
 // ------------------------------------------------------------------ wiring
 
 $('map').addEventListener('click', onMapClick);
@@ -266,7 +332,9 @@ $('tool-car').addEventListener('click', () => setTool('car'));
 $('tool-task').addEventListener('click', () => setTool('task'));
 $('clear').addEventListener('click', () => {
   if (!editing()) return;
-  state.cars = []; state.tasks = []; state.guess = null; showError(''); refresh();
+  // during a campaign the cars are fixed, so only the tasks are cleared
+  if (!campaignStarted()) { state.cars = []; state.guess = null; }
+  state.tasks = []; showError(''); refresh();
 });
 $('guesses').addEventListener('click', e => {
   const b = e.target.closest('[data-car]');
@@ -275,9 +343,8 @@ $('guesses').addEventListener('click', e => {
 });
 $('run').addEventListener('click', run);
 $('skip').addEventListener('click', () => state.result && finish(state.result));
-$('again').addEventListener('click', () => {
-  state.runId++; state.result = null; $('result').hidden = true; refresh();
-});
+$('next-mission').addEventListener('click', nextMission);
+$('new-game').addEventListener('click', newGame);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => state.result ? finish(state.result) : refresh());
 
 fetch('/api/config').then(r => r.json()).then(cfg => { state.config = cfg; }).catch(() => {});

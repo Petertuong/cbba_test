@@ -13,6 +13,9 @@ the tasks among themselves with the Consensus-Based Bundle Algorithm.
   returns; the server alone decides the winner.
 - **Rules:** cars drive at 10 m/s in straight lines; a task is worth `value × 0.98^seconds`;
   each car does at most 2 tasks; on equal bids, the lower car number wins.
+- **Missions:** after a race, each car waits where it finished; completed tasks disappear and
+  unassigned ones stay. Add new tasks and race again: a leaderboard adds up tasks done, points
+  and wins per car over the whole game.
 
 ## Run it
 
