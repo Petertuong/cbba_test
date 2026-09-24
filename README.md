@@ -1,5 +1,9 @@
 # CBBA — Consensus-Based Bundle Algorithm
 
+**Live demo: [CBBA Car Race](https://cbba-test.onrender.com/)**. Place cars and tasks on a
+map, guess which car earns the most, and watch the cars split the tasks with this
+algorithm. (Free hosting: the first load after a quiet period can take up to a minute.)
+
 A from-scratch Python implementation of the Consensus-Based Bundle Algorithm
 (CBBA) from:
 

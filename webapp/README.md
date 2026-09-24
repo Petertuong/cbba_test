@@ -1,5 +1,7 @@
 # CBBA Car Race
 
+**Play it online: https://cbba-test.onrender.com/** (the first load after a quiet period can take up to a minute).
+
 A web game built on the CBBA core in `../cbba/`. Place 2-5 cars and 1-10 tasks on a
 1000 × 600 m map, guess which car will earn the most points, and watch the cars split
 the tasks among themselves with the Consensus-Based Bundle Algorithm.
