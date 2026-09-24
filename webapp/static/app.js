@@ -1,0 +1,284 @@
+// CBBA Car Race: frontend.
+// The server decides everything (allocation, points, winner); this file only
+// lets the player place things, sends the game to the API and replays the result.
+// Players see 1-based numbers ("Car 1"); the API uses 0-based indexes.
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+const COLOR_VARS = ['--c0', '--c1', '--c2', '--c3', '--c4'];
+const LIMITS = { cars: 5, tasks: 10 };
+
+const state = {
+  // example layout so the page is playable straight away
+  cars: [{ x: 120, y: 480 }, { x: 520, y: 110 }, { x: 880, y: 470 }],
+  tasks: [
+    { x: 250, y: 340, value: 40 }, { x: 430, y: 290, value: 90 }, { x: 700, y: 200, value: 30 },
+    { x: 820, y: 330, value: 60 }, { x: 560, y: 520, value: 100 },
+  ],
+  guess: null,
+  tool: 'car',
+  config: { car_speed: 10, discount: 0.98 },
+  result: null,
+  runId: 0,        // bumped to cancel a running animation
+};
+
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const carColor = i => css(COLOR_VARS[i % COLOR_VARS.length]);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+// ------------------------------------------------------------------ drawing
+// view = { snap?: per-car {bundle, path}, carPos?: [{x,y}], done?: task set, trail?: bool }
+
+function draw(view = {}) {
+  const svg = $('map');
+  svg.textContent = '';
+  for (let x = 100; x < 1000; x += 100) el('line', { x1: x, y1: 0, x2: x, y2: 600, stroke: css('--grid'), 'stroke-width': 1 }, svg);
+  for (let y = 100; y < 600; y += 100) el('line', { x1: 0, y1: y, x2: 1000, y2: y, stroke: css('--grid'), 'stroke-width': 1 }, svg);
+  const scale = el('text', { x: 992, y: 590, 'text-anchor': 'end', fill: css('--muted'), 'font-size': 13, 'font-family': 'JetBrains Mono, monospace' }, svg);
+  scale.textContent = 'grid = 100 m';
+
+  const snap = view.snap;
+  // planned routes
+  if (snap) snap.forEach((car, i) => {
+    if (!car.path.length) return;
+    const pts = [state.cars[i]].concat(car.path.map(t => state.tasks[t]));
+    el('polyline', { points: pts.map(p => `${p.x},${p.y}`).join(' '), fill: 'none', stroke: carColor(i), 'stroke-width': 4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-opacity': view.carPos ? 0.35 : 0.8 }, svg);
+  });
+
+  // tasks: white = unclaimed, car colour = claimed, red = claimed by several cars
+  state.tasks.forEach((t, j) => {
+    const owners = snap ? snap.map((c, i) => c.bundle.includes(j) ? i : -1).filter(i => i >= 0) : [];
+    const conflict = owners.length > 1;
+    const fill = conflict ? css('--conflict') : owners.length ? carColor(owners[0]) : css('--free');
+    const g = el('g', { 'data-kind': 'task', 'data-index': j, 'data-testid': `task-${j + 1}`, style: 'cursor:pointer' }, svg);
+    if (conflict) el('circle', { cx: t.x, cy: t.y, r: 25, fill: 'none', stroke: css('--conflict'), 'stroke-width': 3, 'stroke-dasharray': '5 4' }, g);
+    const doneTask = view.done && view.done.has(j);
+    el('circle', { cx: t.x, cy: t.y, r: 18, fill, 'fill-opacity': doneTask ? 0.35 : 1, stroke: owners.length ? fill : css('--muted'), 'stroke-width': 2 }, g);
+    const v = el('text', { x: t.x, y: t.y + 5, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, 'font-family': 'Figtree, sans-serif', fill: owners.length && !doneTask ? '#fff' : css('--ink') }, g);
+    v.textContent = doneTask ? '✓' : Math.round(t.value);
+    const lab = el('text', { x: t.x, y: t.y - 25, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 600, fill: conflict ? css('--conflict') : css('--muted'), 'font-family': 'Figtree, sans-serif' }, g);
+    lab.textContent = conflict ? `T${j + 1} conflict` : `T${j + 1}`;
+  });
+
+  // cars
+  state.cars.forEach((c, i) => {
+    const p = view.carPos ? view.carPos[i] : c;
+    const g = el('g', { 'data-kind': 'car', 'data-index': i, 'data-testid': `car-${i + 1}`, style: 'cursor:pointer' }, svg);
+    el('rect', { x: p.x - 20, y: p.y - 13, width: 40, height: 26, rx: 8, fill: carColor(i), stroke: css('--surface'), 'stroke-width': 2.5 }, g);
+    const n = el('text', { x: p.x, y: p.y + 5, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#fff', 'font-family': 'Figtree, sans-serif' }, g);
+    n.textContent = i + 1;
+  });
+}
+
+// ----------------------------------------------------------------- editing
+
+function editing() { return state.result === null; }
+
+function setTool(tool) {
+  state.tool = tool;
+  $('tool-car').setAttribute('aria-pressed', tool === 'car');
+  $('tool-task').setAttribute('aria-pressed', tool === 'task');
+  $('hint').textContent = tool === 'car'
+    ? 'Click the map to place a car. Click a car or task to remove it.'
+    : 'Click the map to place a task with the value set above. Click a car or task to remove it.';
+}
+
+function toMap(evt) {
+  const svg = $('map'), pt = svg.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  return { x: Math.round(Math.min(1000, Math.max(0, p.x))), y: Math.round(Math.min(600, Math.max(0, p.y))) };
+}
+
+function onMapClick(evt) {
+  if (!editing()) return;
+  showError('');
+  const hit = evt.target.closest('[data-kind]');
+  if (hit) return removeItem(hit.dataset.kind, +hit.dataset.index);
+  const p = toMap(evt);
+  if (state.tool === 'car') {
+    if (state.cars.length >= LIMITS.cars) return showError(`At most ${LIMITS.cars} cars.`);
+    state.cars.push(p);
+  } else {
+    const value = Number($('task-value').value);
+    if (!Number.isFinite(value) || value < 1 || value > 100) return showError('Task value must be between 1 and 100.');
+    if (state.tasks.length >= LIMITS.tasks) return showError(`At most ${LIMITS.tasks} tasks.`);
+    state.tasks.push({ ...p, value });
+  }
+  refresh();
+}
+
+function removeItem(kind, i) {
+  if (kind === 'car') {
+    state.cars.splice(i, 1);
+    // keep the guess pointing at the same car
+    if (state.guess === i) state.guess = null;
+    else if (state.guess > i) state.guess -= 1;
+  } else {
+    state.tasks.splice(i, 1);
+  }
+  refresh();
+}
+
+function renderGuesses() {
+  const box = $('guesses');
+  box.setAttribute('role', 'radiogroup');
+  box.setAttribute('aria-label', 'Car you think will win');
+  if (!state.cars.length) { box.innerHTML = '<span class="empty">Place at least two cars.</span>'; return; }
+  box.innerHTML = state.cars.map((_, i) =>
+    `<button type="button" class="guess" role="radio" aria-checked="${state.guess === i}" data-car="${i}" data-testid="guess-${i + 1}" ${editing() ? '' : 'disabled'}>
+       <i style="background:${carColor(i)}"></i>Car ${i + 1}</button>`).join('');
+}
+
+function refresh() {
+  renderGuesses();
+  const ready = state.cars.length >= 2 && state.tasks.length >= 1 && state.guess !== null;
+  $('run').disabled = !ready || !editing();
+  $('map').classList.toggle('locked', !editing());
+  if (editing()) {
+    $('phase').textContent = `${state.cars.length} cars · ${state.tasks.length} tasks` +
+      (state.guess === null ? ' · pick a car to guess' : ` · you picked Car ${state.guess + 1}`);
+    draw();
+  }
+}
+
+function showError(msg) { $('error').textContent = msg; $('error').hidden = !msg; }
+
+// -------------------------------------------------------------------- race
+
+async function run() {
+  showError('');
+  const body = {
+    cars: state.cars.map(({ x, y }) => ({ x, y })),
+    tasks: state.tasks.map(({ x, y, value }) => ({ x, y, value })),
+    guess: state.guess,
+  };
+  let res;
+  try {
+    res = await fetch('/api/games', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch (e) {
+    return showError('Could not reach the game server. Is it running?');
+  }
+  const data = await res.json();
+  if (!res.ok) {
+    const detail = Array.isArray(data.detail) ? data.detail.map(d => d.msg).join('; ') : data.detail;
+    return showError(`The server rejected this game: ${detail}`);
+  }
+  state.result = data;
+  refresh();
+  play(data);
+}
+
+async function play(result) {
+  const id = ++state.runId;
+  const alive = () => id === state.runId;
+  $('result').hidden = true;
+  $('skip').hidden = false;
+  if (reducedMotion()) return finish(result);
+
+  const n = result.rounds.length;
+  for (let r = 0; r < n && alive(); r++) {
+    $('phase').textContent = `Round ${r + 1} of ${n}: every car bids for the tasks it values most`;
+    draw({ snap: result.rounds[r].bids });
+    await sleep(1300);
+    if (!alive()) return;
+    $('phase').textContent = `Round ${r + 1} of ${n}: cars swap bids, the highest bid keeps each task`;
+    draw({ snap: result.rounds[r].agreed });
+    await sleep(1300);
+  }
+  if (!alive()) return;
+  await drive(result, alive);
+  if (alive()) finish(result);
+}
+
+// cars follow their final paths; points are counted as each task is reached
+function drive(result, alive) {
+  const speed = state.config.car_speed, disc = state.config.discount;
+  const legs = result.paths.map((path, i) => {
+    let t = 0, from = state.cars[i];
+    return path.map(j => {
+      const to = state.tasks[j], dt = Math.hypot(to.x - from.x, to.y - from.y) / speed;
+      const leg = { from, to, j, start: t, end: t + dt };
+      t += dt; from = to;
+      return leg;
+    });
+  });
+  const total = Math.max(1, ...legs.flat().map(l => l.end));
+  const duration = Math.min(6000, Math.max(1800, total * 40));
+  const snap = result.paths.map(p => ({ bundle: p, path: p }));
+
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    function frame(now) {
+      if (!alive()) return resolve();
+      const t = Math.min(1, (now - t0) / duration) * total;
+      const done = new Set(), points = result.paths.map(() => 0);
+      const carPos = state.cars.map((c, i) => {
+        let pos = c;
+        for (const l of legs[i]) {
+          if (t >= l.end) { done.add(l.j); points[i] += state.tasks[l.j].value * disc ** l.end; pos = l.to; }
+          else if (t > l.start) { const f = (t - l.start) / (l.end - l.start); pos = { x: l.from.x + f * (l.to.x - l.from.x), y: l.from.y + f * (l.to.y - l.from.y) }; break; }
+          else break;
+        }
+        return pos;
+      });
+      $('phase').textContent = `Driving · ${Math.round(t)} s · ` + points.map((p, i) => `Car ${i + 1}: ${p.toFixed(1)}`).join(' · ');
+      draw({ snap, carPos, done });
+      if (t < total) requestAnimationFrame(frame); else resolve();
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+function finish(result) {
+  state.runId++;  // stop any animation still running
+  draw({ snap: result.paths.map(p => ({ bundle: p, path: p })) });
+  const names = result.winners.map(i => `Car ${i + 1}`);
+  const winnerText = names.length > 1 ? `${names.join(' and ')} tie for first` : `${names[0]} wins`;
+  const verdict = $('verdict');
+  verdict.textContent = result.correct ? `You called it! ${winnerText}.` : `Not this time: ${winnerText}.`;
+  verdict.className = result.correct ? 'win' : 'lose';
+  $('phase').textContent = result.converged
+    ? `The cars agreed after ${result.rounds.length} rounds.`
+    : `The cars had not fully agreed after ${result.rounds.length} rounds.`;
+  $('scoreboard').innerHTML = result.scores.map((s, i) => `
+    <tr class="${result.winners.includes(i) ? 'best' : ''}" data-testid="score-${i + 1}">
+      <td><i style="background:${carColor(i)}"></i>Car ${i + 1}${i === result.guess ? ' (your pick)' : ''}</td>
+      <td>${result.paths[i].length ? result.paths[i].map(j => 'T' + (j + 1)).join(' → ') : 'none'}</td>
+      <td class="num">${s.toFixed(2)}</td>
+    </tr>`).join('');
+  $('skip').hidden = true;
+  $('result').hidden = false;
+}
+
+// ------------------------------------------------------------------ wiring
+
+$('map').addEventListener('click', onMapClick);
+$('tool-car').addEventListener('click', () => setTool('car'));
+$('tool-task').addEventListener('click', () => setTool('task'));
+$('clear').addEventListener('click', () => {
+  if (!editing()) return;
+  state.cars = []; state.tasks = []; state.guess = null; showError(''); refresh();
+});
+$('guesses').addEventListener('click', e => {
+  const b = e.target.closest('[data-car]');
+  if (!b || !editing()) return;
+  state.guess = +b.dataset.car; refresh();
+});
+$('run').addEventListener('click', run);
+$('skip').addEventListener('click', () => state.result && finish(state.result));
+$('again').addEventListener('click', () => {
+  state.runId++; state.result = null; $('result').hidden = true; refresh();
+});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => state.result ? finish(state.result) : refresh());
+
+fetch('/api/config').then(r => r.json()).then(cfg => { state.config = cfg; }).catch(() => {});
+refresh();

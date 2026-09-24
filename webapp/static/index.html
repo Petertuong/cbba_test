@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CBBA Car Race</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <div>
+        <h1>CBBA Car Race</h1>
+        <p class="sub">Drop cars and tasks, guess which car earns the most, then watch the cars split the tasks among themselves. No one assigns them: they negotiate with the Consensus-Based Bundle Algorithm.</p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="board" aria-label="Map">
+        <div class="toolbar" role="group" aria-label="What a click on the map places">
+          <button type="button" class="tool" id="tool-car" data-testid="tool-car" aria-pressed="true">Place cars</button>
+          <button type="button" class="tool" id="tool-task" data-testid="tool-task" aria-pressed="false">Place tasks</button>
+          <label class="value-field" for="task-value">Task value
+            <input type="number" id="task-value" data-testid="task-value" min="1" max="100" value="50">
+          </label>
+          <button type="button" class="ghost" id="clear" data-testid="clear">Clear map</button>
+        </div>
+        <svg id="map" data-testid="map" viewBox="0 0 1000 600" role="img" aria-label="Map, 1000 by 600 metres"></svg>
+        <p class="hint" id="hint">Click the map to place a car. Click a car or task to remove it.</p>
+        <div class="status-row">
+          <p class="phase" id="phase" data-testid="phase" aria-live="polite"></p>
+          <button type="button" class="ghost" id="skip" data-testid="skip" hidden>Skip animation</button>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <section class="card">
+          <h2>Your guess</h2>
+          <p class="muted">Which car will earn the most points?</p>
+          <div class="guesses" id="guesses" data-testid="guesses"></div>
+          <button type="button" class="primary" id="run" data-testid="run">Start the race</button>
+          <p class="error" id="error" data-testid="error" role="alert" hidden></p>
+        </section>
+
+        <section class="card result" id="result" data-testid="result" hidden>
+          <h2 id="verdict" data-testid="verdict"></h2>
+          <table class="scores">
+            <thead><tr><th>Car</th><th>Tasks</th><th class="num">Points</th></tr></thead>
+            <tbody id="scoreboard" data-testid="scoreboard"></tbody>
+          </table>
+          <div class="row">
+            <button type="button" class="ghost" id="again" data-testid="again">Edit and play again</button>
+          </div>
+        </section>
+
+        <section class="card rules">
+          <h2>Rules</h2>
+          <ul>
+            <li>Each task is worth its value, minus <b>2% per second</b> of driving. Cars go <b>10 m/s</b>.</li>
+            <li>Each car does at most <b>2 tasks</b>, and each task goes to one car.</li>
+            <li>Cars bid for the tasks they value most. In each round they swap bids, and the higher bid wins a conflict (equal bids: lower car number).</li>
+            <li>2–5 cars, 1–10 tasks, values 1–100.</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
