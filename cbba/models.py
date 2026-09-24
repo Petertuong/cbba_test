@@ -1,7 +1,8 @@
 class Agent:
-    def __init__(self, agent_id, position, num_tasks, num_agents):
+    def __init__(self, agent_id, position, num_tasks, num_agents, speed=1.0):
         self.id = agent_id
         self.position = position
+        self.speed = speed  # distance units per time unit; travel time = distance / speed
         self.bundle = []  # task id goes here
         self.path = []  # task id goes here
         self.winning_agent_list = [-1] * num_tasks

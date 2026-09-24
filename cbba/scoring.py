@@ -1,13 +1,14 @@
 from .geometry import euclidean_distance
 
 #time for an agent to move to each task from its current position
-def compute_arrival_times(agent_position, path, tasks_dict):
+#speed=1.0 keeps the old behaviour where time == distance
+def compute_arrival_times(agent_position, path, tasks_dict, speed=1.0):
     arrival_times = []
     current_position = agent_position
     current_time = 0.0
     for task_id in path:
         task_position = tasks_dict[task_id].position
-        current_time += euclidean_distance(task_position, current_position)
+        current_time += euclidean_distance(task_position, current_position) / speed
         current_position = task_position
         arrival_times.append(current_time)
 
@@ -38,14 +39,14 @@ def marginal_score(agent_i, candidate_task_id, tasks_dict):
     best_reward_j = 0.0
     best_position_j = -1
 
-    curr_arrival_time = compute_arrival_times(agent_position, path_i, tasks_dict)
+    curr_arrival_time = compute_arrival_times(agent_position, path_i, tasks_dict, agent_i.speed)
     prev_discount_reward = discount_reward(curr_arrival_time, path_i, tasks_dict)
 
     # Compute marginal score on each possible insertion
     for i in range(0, len(path_i) + 1):
         new_path = path_i.copy()
         new_path.insert(i, candidate_task_id)
-        new_arrival_time = compute_arrival_times(agent_position, new_path, tasks_dict)
+        new_arrival_time = compute_arrival_times(agent_position, new_path, tasks_dict, agent_i.speed)
         new_discount_reward = discount_reward(new_arrival_time, new_path, tasks_dict)
         new_ms = new_discount_reward - prev_discount_reward
 
@@ -54,3 +55,9 @@ def marginal_score(agent_i, candidate_task_id, tasks_dict):
             best_position_j = i
 
     return (best_reward_j, best_position_j)
+
+
+#points an agent actually earns by driving its whole path
+def agent_score(agent_i, tasks_dict):
+    arrival_times = compute_arrival_times(agent_i.position, agent_i.path, tasks_dict, agent_i.speed)
+    return discount_reward(arrival_times, agent_i.path, tasks_dict)

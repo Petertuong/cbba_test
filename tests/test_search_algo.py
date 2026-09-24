@@ -54,29 +54,34 @@ def test_build_graph_rows_are_independent():
 
 # -------------------------------------------------------------------- bfs
 
+def bfs_for(agents, comm_range):
+    """bfs takes the adjacency matrix; build it from positions first."""
+    return bfs(len(agents), build_graph(agents, comm_range))
+
+
 def test_bfs_single_agent_has_zero_depth():
     agents = make_agents([(0.0, 0.0)])
-    assert bfs(agents, comm_range=10.0) == 0
+    assert bfs_for(agents, 10.0) == (False, 0)
 
 
 def test_bfs_chain_depth_is_hop_count():
     # 0 - 1 - 2 - 3, evenly spaced 10 apart, comm_range covers one hop
     agents = make_agents([(0.0, 0.0), (10.0, 0.0), (20.0, 0.0), (30.0, 0.0)])
-    assert bfs(agents, comm_range=10.0) == 3
+    assert bfs_for(agents, 10.0) == (False, 3)
 
 
 def test_bfs_star_depth_is_two_hops_leaf_to_leaf():
     # center at origin, three leaves in range of the center only
     agents = make_agents([(0.0, 0.0), (5.0, 0.0), (0.0, 5.0), (-5.0, 0.0)])
-    assert bfs(agents, comm_range=5.0) == 2
+    assert bfs_for(agents, 5.0) == (False, 2)
 
 
 def test_bfs_fully_connected_depth_is_one():
     agents = make_agents([(0.0, 0.0), (1.0, 0.0), (0.0, 1.0)])
-    assert bfs(agents, comm_range=10.0) == 1
+    assert bfs_for(agents, 10.0) == (False, 1)
 
 
 def test_bfs_disconnected_components_stay_bounded_by_reachable_set():
     # two isolated pairs, far enough apart that they never see each other
     agents = make_agents([(0.0, 0.0), (1.0, 0.0), (1000.0, 0.0), (1001.0, 0.0)])
-    assert bfs(agents, comm_range=1.0) == 1
+    assert bfs_for(agents, 1.0) == (True, 1)  # flagged as disconnected

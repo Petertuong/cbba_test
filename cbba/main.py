@@ -56,22 +56,35 @@ def main(graph, D, agent_dict, tasks_dict):
     return (converged, current_round, N_min)
 
 #for debugging as well since we are testing on multiple comm ranges
-def make_agents():
+def make_tasks():
+    positions = [(100.0, 100.0), (400.0, 200.0), (600.0, 100.0), (900.0, 300.0), (200.0, 800.0)]
+    return {j: Task(j, pos, 1.0, 0.95) for j, pos in enumerate(positions)}
+
+
+def make_agents(num_tasks):
     positions = [(0.0, 0.0), (500.0, 0.0), (1000.0, 0.0)]
-    return {i: Agent(i, pos, len(tasks_dict), len(positions))
+    return {i: Agent(i, pos, num_tasks, len(positions))
             for i, pos in enumerate(positions)}
 
 
 def add_record(records, converged, disconnected, T_c, N_min, D, comm_range):
-    records[comm_range] = Records(...)
+    records[comm_range] = Records(converged, disconnected, T_c, N_min, D, comm_range)
 
 
-records = {}
+#only runs with `python3 -m cbba.main`, not on import
+if __name__ == "__main__":
+    records = {}
 
-for comm_range in [3, 6, 9, 12, 15, 20]:
-    agent_dict = make_agents()
-    graph = build_graph(agent_dict, comm_range)
-    disconnected , D  = bfs(N_u, graph) #longest hop + if graph is disconnected
-    converged, T_c, N_min = main(graph, D)
-    add_record(records, converged, disconnected, T_c, N_min, D, comm_range)
+    #agents are 500 apart: 400 = nobody connected, 600 = chain 0-1-2, 1100 = everyone
+    for comm_range in [400, 600, 1100]:
+        tasks_dict = make_tasks()
+        agent_dict = make_agents(len(tasks_dict))
+        graph = build_graph(agent_dict, comm_range)
+        disconnected, D = bfs(len(agent_dict), graph) #longest hop + if graph is disconnected
+        converged, T_c, N_min = main(graph, D, agent_dict, tasks_dict)
+        add_record(records, converged, disconnected, T_c, N_min, D, comm_range)
+
+    for comm_range, r in records.items():
+        print("comm_range %5d: D=%d disconnected=%s converged=%s rounds=%d ratio=%s"
+              % (comm_range, r.D, r.disconnected, r.converged, r.T_c, r.get_ratio()))
 
