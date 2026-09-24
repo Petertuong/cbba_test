@@ -39,7 +39,6 @@ tests/
   test_search_algo.py  communication graph and BFS
 webapp/              CBBA Car Race: a web game built on the core (see webapp/README.md)
 docs/TEST_PLAN.md    test levels, techniques, acceptance scenarios, defects found
-azure-pipelines.yml  CI: every test level on each push
 ```
 
 # CBBA — Consensus-Based Bundle Algorithm

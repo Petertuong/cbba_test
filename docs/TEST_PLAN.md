@@ -19,7 +19,7 @@
 | API | the HTTP contract: valid games, rejected input, error messages | `webapp/tests/test_api.py` | pytest + FastAPI TestClient | 24 |
 | End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 10 |
 
-All levels run on every push in `azure-pipelines.yml`, and results and coverage are published to Azure DevOps.
+All levels are run with pytest before every commit (commands in section 8).
 
 ## 3. Test design techniques
 
@@ -72,16 +72,16 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | D1 | A message carried its sender's timestamp one round out of date | reasoning about a redundant field; confirmed by `test_one_hop_per_round` failing after the change | stamp before copying in `produce_message` |
 | D2 | Two agents with exactly equal bids both kept the task forever | code review against the paper; reproduced with two agents at the same spot | lower id wins; `test_tie_break.py`, 4 decision-table rows |
 | D3 | Distance ignored the z coordinate | new requirement (3D); failing test first | `math.dist`; `test_geometry.py` |
-| D4 | 5 graph-search tests out of date after an API change | red CI-style test run | tests updated to the new signature |
+| D4 | 5 graph-search tests out of date after an API change | full test run | tests updated to the new signature |
 | D5 | Importing `cbba/main.py` crashed (experiment code at module level) | import check | code moved under `if __name__ == "__main__"` |
 | D6 | The empty result card showed before any game (a CSS `display` rule overrode the `hidden` attribute) | manual exploratory test in the browser | global `[hidden]` rule; AC1 now asserts the card is hidden. Re-introducing the bug makes AC1 fail |
 | D7 | "Skip animation" was unreachable: it sat inside the card hidden during the animation | code review | button moved next to the round status; AC9 |
-| D8 | Tests fail in shells that source ROS 2 (ROS's pytest plugin needs `yaml`) | local run | run with `env -u PYTHONPATH`; CI is unaffected |
+| D8 | Tests fail in shells that source ROS 2 (ROS's pytest plugin needs `yaml`) | local run | run with `env -u PYTHONPATH` |
 
 ## 7. Entry and exit criteria
 
 - **Entry:** the code builds, and the test environment installs from `webapp/requirements-dev.txt` (the server alone needs only `webapp/requirements.txt`).
-- **Exit (per change):** every level green in the pipeline, no open defect of high severity, and core coverage not lower than before (currently 81% core, 100% web backend).
+- **Exit (per change):** every test level green, no open defect of high severity, and core coverage not lower than before (currently 81% core, 100% web backend).
 
 ## 8. How to run
 
