@@ -24,7 +24,9 @@ const state = {
   board: null,     // per car {tasks, points, wins}; null until the first mission ends
   guesses: { right: 0, total: 0 },
   tool: 'car',
-  config: { car_speed: 10, discount: 0.98 },
+  // race settings chosen by the player (the server checks them again)
+  settings: { tasksPerCar: 2, lossPct: 2, speed: 10 },
+  wantedTasksPerCar: 2,   // what the player chose; the map may only allow fewer
   result: null,
   runId: 0,        // bumped to cancel a running animation
 };
@@ -86,6 +88,58 @@ function draw(view = {}) {
   });
 }
 
+// ---------------------------------------------------------------- settings
+
+const SETTING_LIMITS = { tasksPerCar: [1, LIMITS.tasks], lossPct: [0, 50], speed: [1, 50] };
+
+// never more than the tasks on the map; with an empty map, only the overall limit applies
+function maxTasksPerCar() { return state.tasks.length ? Math.min(LIMITS.tasks, state.tasks.length) : LIMITS.tasks; }
+
+// read the three inputs; returns an error message, or '' when all are valid
+function readSettings() {
+  const perCar = Number($('setting-tasks-per-car').value);
+  const loss = Number($('setting-loss').value);
+  const speed = Number($('setting-speed').value);
+  if (!Number.isInteger(perCar) || perCar < 1 || perCar > maxTasksPerCar())
+    return `Tasks per car must be a whole number from 1 to ${maxTasksPerCar()} (the tasks on the map).`;
+  if (!Number.isFinite(loss) || loss < SETTING_LIMITS.lossPct[0] || loss > SETTING_LIMITS.lossPct[1])
+    return 'Value lost per second must be between 0 and 50 %.';
+  if (!Number.isFinite(speed) || speed < SETTING_LIMITS.speed[0] || speed > SETTING_LIMITS.speed[1])
+    return 'Car speed must be between 1 and 50 m/s.';
+  state.settings = { tasksPerCar: perCar, lossPct: loss, speed };
+  return '';
+}
+
+// keep "tasks per car" within the tasks on the map, and the rules text in step
+function syncSettings() {
+  const max = maxTasksPerCar(), input = $('setting-tasks-per-car');
+  input.max = max;
+  $('tasks-per-car-max').textContent = `max ${max}`;
+  ['setting-tasks-per-car', 'setting-loss', 'setting-speed'].forEach(id => { $(id).disabled = !editing(); });
+  const { tasksPerCar, lossPct, speed } = state.settings;
+  $('rule-loss').textContent = `${lossPct}% per second`;
+  $('rule-speed').textContent = `${speed} m/s`;
+  $('rule-per-car').textContent = `${tasksPerCar} task${tasksPerCar === 1 ? '' : 's'}`;
+}
+
+// after the number of tasks changes: use the player's choice, or fewer if the map
+// has fewer tasks (adding tasks again brings the choice back)
+function fitTasksPerCar() {
+  const input = $('setting-tasks-per-car');
+  input.value = state.tasks.length ? Math.min(state.wantedTasksPerCar, maxTasksPerCar()) : state.wantedTasksPerCar;
+}
+
+function onSettingChange(evt) {
+  if (evt.target.id === 'setting-tasks-per-car') {
+    const v = Number(evt.target.value);
+    if (Number.isInteger(v) && v >= 1 && v <= LIMITS.tasks) state.wantedTasksPerCar = v;
+  }
+  const problem = readSettings();
+  showError(problem);
+  syncSettings();
+  refresh();
+}
+
 // ----------------------------------------------------------------- editing
 
 function editing() { return state.result === null; }
@@ -123,6 +177,7 @@ function onMapClick(evt) {
     if (!Number.isFinite(value) || value < 1 || value > 100) return showError('Task value must be between 1 and 100.');
     if (state.tasks.length >= LIMITS.tasks) return showError(`At most ${LIMITS.tasks} tasks.`);
     state.tasks.push({ ...p, value });
+    fitTasksPerCar();
   }
   refresh();
 }
@@ -136,6 +191,7 @@ function removeItem(kind, i) {
     else if (state.guess > i) state.guess -= 1;
   } else {
     state.tasks.splice(i, 1);
+    fitTasksPerCar();
   }
   refresh();
 }
@@ -152,7 +208,10 @@ function renderGuesses() {
 
 function refresh() {
   renderGuesses();
-  const ready = state.cars.length >= 2 && state.tasks.length >= 1 && state.guess !== null;
+  syncSettings();
+  const settingsProblem = readSettings();
+  if (settingsProblem) showError(settingsProblem);   // keep explaining why the race can't start
+  const ready = state.cars.length >= 2 && state.tasks.length >= 1 && state.guess !== null && !settingsProblem;
   $('run').disabled = !ready || !editing();
   $('map').classList.toggle('locked', !editing());
   if (editing()) {
@@ -176,6 +235,9 @@ async function run() {
     cars: state.cars.map(({ x, y }) => ({ x, y })),
     tasks: state.tasks.map(({ x, y, value }) => ({ x, y, value })),
     guess: state.guess,
+    tasks_per_car: state.settings.tasksPerCar,
+    speed: state.settings.speed,
+    discount: Number((1 - state.settings.lossPct / 100).toFixed(4)),   // 2 % lost -> 0.98 kept
   };
   let res;
   try {
@@ -217,7 +279,7 @@ async function play(result) {
 
 // cars follow their final paths; points are counted as each task is reached
 function drive(result, alive) {
-  const speed = state.config.car_speed, disc = state.config.discount;
+  const speed = result.settings.speed, disc = result.settings.discount;
   const legs = result.paths.map((path, i) => {
     let t = 0, from = state.cars[i];
     return path.map(j => {
@@ -313,6 +375,7 @@ function nextMission() {
   state.runId++;
   state.cars = r.end_positions.map(([x, y]) => ({ x, y }));
   state.tasks = state.tasks.filter((_, j) => !done.has(j));
+  fitTasksPerCar();
   state.mission += 1;
   state.guess = null; state.result = null;
   $('result').hidden = true; showError('');
@@ -323,6 +386,7 @@ function nextMission() {
 function newGame() {
   state.runId++;
   Object.assign(state, example(), { guess: null, result: null, mission: 1, board: null, guesses: { right: 0, total: 0 } });
+  fitTasksPerCar();
   $('result').hidden = true; showError('');
   setTool('car');
   renderBoard();
@@ -338,7 +402,7 @@ $('clear').addEventListener('click', () => {
   if (!editing()) return;
   // during a campaign the cars are fixed, so only the tasks are cleared
   if (!campaignStarted()) { state.cars = []; state.guess = null; }
-  state.tasks = []; showError(''); refresh();
+  state.tasks = []; fitTasksPerCar(); showError(''); refresh();
 });
 $('guesses').addEventListener('click', e => {
   const b = e.target.closest('[data-car]');
@@ -351,5 +415,6 @@ $('next-mission').addEventListener('click', nextMission);
 $('new-game').addEventListener('click', newGame);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => state.result ? finish(state.result) : refresh());
 
-fetch('/api/config').then(r => r.json()).then(cfg => { state.config = cfg; }).catch(() => {});
+['setting-tasks-per-car', 'setting-loss', 'setting-speed'].forEach(id => $(id).addEventListener('input', onSettingChange));
+fitTasksPerCar();
 refresh();

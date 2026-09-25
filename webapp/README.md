@@ -11,8 +11,11 @@ the tasks among themselves with the Consensus-Based Bundle Algorithm.
   the final routes, the points and the winner.
 - **Frontend** (`static/`): plain HTML, CSS and JavaScript. It only replays what the server
   returns; the server alone decides the winner.
-- **Rules:** cars drive at 10 m/s in straight lines; a task is worth `value × 0.98^seconds`;
-  each car does at most 2 tasks; on equal bids, the lower car number wins.
+- **Rules:** cars drive in straight lines; a task is worth `value × discount^seconds`;
+  each task goes to one car; on equal bids, the lower car number wins.
+- **Settings** (per race): tasks per car (1 up to the tasks on the map, default 2), value
+  lost per second (0-50 %, default 2 %, i.e. discount 0.98) and car speed (1-50 m/s,
+  default 10). The API accepts them as `tasks_per_car`, `discount` and `speed`.
 - **Missions:** after a race, each car waits where it finished; completed tasks disappear and
   unassigned ones stay. Add new tasks and race again: a leaderboard adds up tasks done, points
   and wins per car over the whole game.

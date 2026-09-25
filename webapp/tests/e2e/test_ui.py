@@ -173,3 +173,85 @@ def test_new_game_resets_everything(game: Page):
     game.get_by_test_id('new-game').click()
     expect(game.get_by_test_id('leaderboard')).to_be_hidden()
     expect(game.get_by_test_id('phase')).to_have_text('Mission 1 · 3 cars · 5 tasks · pick a car to guess')
+
+
+# ------------------------------------------------------------------ settings
+
+def two_cars_one_task(page: Page, value=80):
+    """Car 1 at (100, 300) with a task 50 m away; Car 2 far off at (900, 300)."""
+    page.get_by_test_id('clear').click()
+    click_map(page, 100, 300)
+    click_map(page, 900, 300)
+    page.get_by_test_id('tool-task').click()
+    page.get_by_test_id('task-value').fill(str(value))
+    click_map(page, 150, 300)
+
+
+def test_settings_update_the_rules_text(game: Page):
+    game.get_by_test_id('setting-loss').fill('5')
+    game.get_by_test_id('setting-speed').fill('20')
+    game.get_by_test_id('setting-tasks-per-car').fill('1')
+    expect(game.get_by_test_id('rule-loss')).to_have_text('5% per second')
+    expect(game.get_by_test_id('rule-speed')).to_have_text('20 m/s')
+    expect(game.get_by_test_id('rule-per-car')).to_have_text('1 task')
+
+
+def test_speed_changes_the_points(game: Page):
+    # 50 m at 25 m/s = 2 s -> 80 * 0.98**2 = 76.83
+    two_cars_one_task(game)
+    game.get_by_test_id('setting-speed').fill('25')
+    game.get_by_test_id('guess-1').click()
+    game.get_by_test_id('run').click()
+    expect(game.get_by_test_id('score-1')).to_contain_text('76.83')
+
+
+def test_no_value_lost_gives_full_points(game: Page):
+    two_cars_one_task(game)
+    game.get_by_test_id('setting-loss').fill('0')
+    game.get_by_test_id('guess-1').click()
+    game.get_by_test_id('run').click()
+    expect(game.get_by_test_id('score-1')).to_contain_text('80.00')
+
+
+def test_one_task_per_car_leaves_tasks_for_later(game: Page):
+    # example map: 3 cars, 5 tasks, but only 1 task each -> 2 tasks stay
+    game.get_by_test_id('setting-tasks-per-car').fill('1')
+    game.get_by_test_id('guess-3').click()
+    game.get_by_test_id('run').click()
+    for car in (1, 2, 3):
+        expect(game.get_by_test_id(f'score-{car}')).not_to_contain_text('→')   # one task, no arrow
+    game.get_by_test_id('next-mission').click()
+    expect(game.get_by_test_id('phase')).to_have_text('Mission 2 · 3 cars · 2 tasks · pick a car to guess')
+
+
+def test_tasks_per_car_cannot_exceed_the_tasks_on_the_map(game: Page):
+    game.get_by_test_id('clear').click()
+    expect(game.get_by_test_id('tasks-per-car-max')).to_have_text('max 10')
+    two_cars_one_task(game)
+    # one task on the map: the setting drops from 2 to 1 by itself
+    expect(game.get_by_test_id('tasks-per-car-max')).to_have_text('max 1')
+    expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('1')
+    game.get_by_test_id('setting-tasks-per-car').fill('3')
+    expect(game.get_by_test_id('error')).to_have_text(
+        'Tasks per car must be a whole number from 1 to 1 (the tasks on the map).')
+    game.get_by_test_id('guess-1').click()
+    expect(game.get_by_test_id('run')).to_be_disabled()
+
+
+def test_speed_outside_the_limits_is_refused(game: Page):
+    game.get_by_test_id('guess-1').click()
+    game.get_by_test_id('setting-speed').fill('60')
+    expect(game.get_by_test_id('error')).to_have_text('Car speed must be between 1 and 50 m/s.')
+    expect(game.get_by_test_id('run')).to_be_disabled()
+    game.get_by_test_id('setting-speed').fill('50')
+    expect(game.get_by_test_id('error')).to_be_hidden()
+    expect(game.get_by_test_id('run')).to_be_enabled()
+
+
+def test_adding_tasks_brings_back_the_chosen_tasks_per_car(game: Page):
+    # regression: the setting used to stay at 1 after the first task was placed
+    two_cars_one_task(game)                                   # 1 task: 2 per car is capped to 1
+    expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('1')
+    click_map(game, 500, 100)
+    click_map(game, 500, 500)                                 # 3 tasks now
+    expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('2')

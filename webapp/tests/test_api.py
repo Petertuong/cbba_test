@@ -22,7 +22,7 @@ def test_valid_game_returns_the_full_result():
     assert r.status_code == 200
     body = r.json()
     assert set(body) == {'rounds', 'converged', 'paths', 'end_positions',
-                         'scores', 'winners', 'guess', 'correct'}
+                         'scores', 'winners', 'guess', 'correct', 'settings'}
     assert body['correct'] is True
     assert len(body['scores']) == 2
     assert body['rounds'][0]['bids'][0]['bundle'] == [0]
@@ -60,6 +60,52 @@ def test_invalid_input_is_rejected(name, body):
 ])
 def test_values_on_the_limits_are_accepted(name, body):
     assert client.post('/api/games', json=body).status_code == 200, name
+
+
+FIVE_TASKS = [{'x': 100 * i, 'y': 100, 'value': 50} for i in range(1, 6)]
+
+
+def test_settings_default_to_the_original_rules():
+    body = client.post('/api/games', json=with_(tasks=FIVE_TASKS)).json()
+    assert body['settings'] == {'tasks_per_car': 2, 'speed': 10, 'discount': 0.98}
+
+
+def test_default_tasks_per_car_shrinks_to_the_number_of_tasks():
+    # one task on the map: the default of 2 per car becomes 1 instead of a rejection
+    body = client.post('/api/games', json=VALID).json()
+    assert body['settings']['tasks_per_car'] == 1
+
+
+@pytest.mark.parametrize('name,settings', [
+    ('0 tasks per car', {'tasks_per_car': 0}),
+    ('11 tasks per car', {'tasks_per_car': 11}),
+    ('more tasks per car than tasks', {'tasks_per_car': 6}),
+    ('speed below 1', {'speed': 0.9}),
+    ('speed above 50', {'speed': 51}),
+    ('discount below 0.5', {'discount': 0.49}),
+    ('discount above 1', {'discount': 1.01}),
+])
+def test_invalid_settings_are_rejected(name, settings):
+    r = client.post('/api/games', json=with_(tasks=FIVE_TASKS, **settings))
+    assert r.status_code == 422, name
+
+
+@pytest.mark.parametrize('name,settings', [
+    ('1 task per car', {'tasks_per_car': 1}),
+    ('as many per car as there are tasks', {'tasks_per_car': 5}),
+    ('slowest speed', {'speed': 1}),
+    ('fastest speed', {'speed': 50}),
+    ('strongest discount', {'discount': 0.5}),
+    ('no discount', {'discount': 1.0}),
+])
+def test_settings_on_the_limits_are_accepted(name, settings):
+    r = client.post('/api/games', json=with_(tasks=FIVE_TASKS, **settings))
+    assert r.status_code == 200, name
+
+
+def test_too_many_tasks_per_car_says_why():
+    r = client.post('/api/games', json=with_(tasks=FIVE_TASKS, tasks_per_car=6))
+    assert "tasks_per_car can't be more than the number of tasks (5)" in r.text
 
 
 def test_rejection_says_what_is_wrong():

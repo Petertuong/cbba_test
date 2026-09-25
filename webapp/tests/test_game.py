@@ -53,6 +53,36 @@ def test_a_car_never_takes_more_than_the_limit():
     assert all(len(p) <= game.TASKS_PER_CAR for p in result['paths'])
 
 
+def test_tasks_per_car_is_respected():
+    tasks = [(10 * i, 0, 50) for i in range(1, 7)]
+    for limit in (1, 3):
+        result = game.play(cars=[(0, 0), (1000, 600)], tasks=tasks, guess=0, tasks_per_car=limit)
+        assert max(len(p) for p in result['paths']) == limit
+
+
+def test_faster_cars_lose_less_value():
+    # 300 m at 20 m/s = 15 s -> 100 * 0.98**15
+    result = game.play(cars=[(0, 0), (1000, 600)], tasks=[(300, 0, 100)], guess=0, speed=20)
+    assert result['scores'][0] == pytest.approx(100 * 0.98 ** 15, abs=0.01)
+
+
+def test_discount_sets_the_value_kept_per_second():
+    # 300 m at 10 m/s = 30 s -> 100 * 0.9**30
+    result = game.play(cars=[(0, 0), (1000, 600)], tasks=[(300, 0, 100)], guess=0, discount=0.9)
+    assert result['scores'][0] == pytest.approx(100 * 0.9 ** 30, abs=0.01)
+
+
+def test_no_discount_means_full_value():
+    result = game.play(cars=[(0, 0), (1000, 600)], tasks=[(300, 0, 100)], guess=0, discount=1.0)
+    assert result['scores'][0] == 100
+
+
+def test_result_reports_the_settings_used():
+    result = game.play(cars=[(0, 0), (1000, 600)], tasks=[(300, 0, 100)], guess=0,
+                       tasks_per_car=1, speed=25, discount=0.95)
+    assert result['settings'] == {'tasks_per_car': 1, 'speed': 25, 'discount': 0.95}
+
+
 def test_cars_end_at_their_last_task_or_stay_put():
     # car 0 takes the nearby task and ends there; car 1 gets nothing and doesn't move
     result = game.play(cars=[(100, 100), (900, 500)], tasks=[(150, 100, 50)], guess=0)

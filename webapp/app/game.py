@@ -2,27 +2,29 @@
 
 A player places cars and tasks on a map, guesses which car will earn the most
 points, and CBBA decides who does what. A car earns each task's value,
-discounted by how long it took to get there: value * DISCOUNT ** seconds.
+discounted by how long it took to get there: value * discount ** seconds.
+The player can change speed, discount and tasks per car; the constants below
+are the defaults.
 """
 from cbba.models import Agent, Task
 from cbba.simulation import simulate
 
 MAP_WIDTH = 1000.0   # metres
 MAP_HEIGHT = 600.0   # metres
-CAR_SPEED = 10.0     # metres per second
-DISCOUNT = 0.98      # value kept per second of travel
-TASKS_PER_CAR = 2    # CBBA bundle limit (L_t)
+CAR_SPEED = 10.0     # metres per second (default)
+DISCOUNT = 0.98      # value kept per second of travel (default)
+TASKS_PER_CAR = 2    # CBBA bundle limit L_t (default)
 
 
-def play(cars, tasks, guess):
+def play(cars, tasks, guess, tasks_per_car=TASKS_PER_CAR, speed=CAR_SPEED, discount=DISCOUNT):
     """cars: [(x, y)], tasks: [(x, y, value)], guess: index of a car.
     Inputs are assumed valid (the API layer checks them)."""
-    agents = {i: Agent(i, (x, y), len(tasks), len(cars), speed=CAR_SPEED)
+    agents = {i: Agent(i, (x, y), len(tasks), len(cars), speed=speed)
               for i, (x, y) in enumerate(cars)}
-    task_dict = {j: Task(j, (x, y), value, DISCOUNT)
+    task_dict = {j: Task(j, (x, y), value, discount)
                  for j, (x, y, value) in enumerate(tasks)}
 
-    result = simulate(agents, task_dict, TASKS_PER_CAR)
+    result = simulate(agents, task_dict, tasks_per_car)
 
     scores = [round(result['scores'][i], 2) for i in range(len(cars))]
     best = max(scores)
@@ -42,6 +44,8 @@ def play(cars, tasks, guess):
         'winners': winners,
         'guess': guess,
         'correct': guess in winners,
+        # echoed back so the browser animates with exactly the rules the server used
+        'settings': {'tasks_per_car': tasks_per_car, 'speed': speed, 'discount': discount},
     }
 
 
