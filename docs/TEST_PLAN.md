@@ -17,7 +17,7 @@
 | Integration | several agents running full rounds until agreement; invariants hold at the end | `tests/test_integration.py`, `tests/test_simulation.py` | pytest | included above |
 | Component | game rules (who wins, points formula, limits, where cars end, player settings) without HTTP | `webapp/tests/test_game.py` | pytest | 15 |
 | API | the HTTP contract: valid games, rejected input and settings, error messages, caching headers | `webapp/tests/test_api.py` | pytest + FastAPI TestClient | 43 |
-| End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 22 |
+| End-to-end / acceptance | a real browser plays the game against the real server | `webapp/tests/e2e/` | Playwright | 26 |
 
 All levels are run with pytest before every commit (commands in section 8).
 
@@ -62,8 +62,11 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | AC17 | **Given** a faster car speed, **when** the race ends, **then** the points follow the new travel time | `test_speed_changes_the_points` |
 | AC18 | **Given** no value lost per second, **then** a car earns the task's full value | `test_no_value_lost_gives_full_points` |
 | AC19 | **Given** 1 task per car, **then** no car does more than one task and the rest wait for the next mission | `test_one_task_per_car_leaves_tasks_for_later` |
-| AC20 | **Given** fewer tasks on the map than my tasks-per-car choice, **then** it is lowered to the number of tasks, a higher value is refused, and adding tasks brings my choice back | `test_tasks_per_car_cannot_exceed_the_tasks_on_the_map`, `test_adding_tasks_brings_back_the_chosen_tasks_per_car` |
+| AC20 | **Given** fewer tasks on the map than my tasks-per-car choice, **then** it is lowered to the number of tasks, a too-high value is explained while I type and set to the maximum when I leave the box, and adding tasks brings my choice back | `test_tasks_per_car_cannot_exceed_the_tasks_on_the_map`, `test_too_many_tasks_per_car_is_set_to_the_maximum`, `test_adding_tasks_brings_back_the_chosen_tasks_per_car` |
 | AC21 | **Given** a speed outside 1-50 m/s, **then** I am told the limits and the race cannot start | `test_speed_outside_the_limits_is_refused` |
+| AC22 | **Given** I change speed and value lost, **when** I start the race, **then** exactly those values are sent to the server | `test_speed_and_loss_reach_the_server` |
+| AC23 | **Given** one setting box holds an invalid value, **when** I change another setting, **then** that change still applies | `test_one_bad_setting_does_not_freeze_the_others` |
+| AC24 | **Given** a speed above 50 m/s, **when** I leave the box, **then** it is set to 50 and I am told why | `test_out_of_range_speed_is_corrected_when_leaving_the_box` |
 
 ## 5. Traceability: requirement → tests
 
@@ -98,6 +101,9 @@ Written from the player's side, each automated in `webapp/tests/e2e/test_ui.py`.
 | D10 | When every task was done, the next mission looked frozen (empty map, disabled button, no hint) | same user report | the status line tells the player to place new tasks; AC10 asserts the message |
 | D11 | A game with 1 task was rejected once tasks per car was validated (default 2 > 1 task) | 10 existing API tests failed after the change | the default adapts to the number of tasks; only an explicit choice is refused; `test_default_tasks_per_car_shrinks_to_the_number_of_tasks` |
 | D12 | Building a map from scratch locked tasks per car at 1: it was lowered for the first task and never raised again | `test_unassigned_tasks_wait_for_the_next_mission` failed (3 tasks left instead of 1) | the player's choice is remembered and re-applied as tasks are added; `test_adding_tasks_brings_back_the_chosen_tasks_per_car` |
+| D13 | A too-high tasks-per-car value stayed in the box while the game kept using the old one (box "6", game 2); the rules text disagreed with the box | reported by a user on the live site | out-of-range values are corrected when leaving the box, with a note; `test_too_many_tasks_per_car_is_set_to_the_maximum` |
+| D14 | One invalid setting silently blocked changes to the others (speed typed as 25, game still used 10 m/s) | same user report, reproduced with real typing | each setting is checked and stored on its own; `test_one_bad_setting_does_not_freeze_the_others` |
+| D15 | The first click on a guess after editing a setting was lost: leaving the box refreshed the page and rebuilt the button being clicked | 4 existing browser tests failed after the D13 fix | guess buttons are updated in place; covered by AC17-AC19, AC22 |
 
 ## 7. Entry and exit criteria
 

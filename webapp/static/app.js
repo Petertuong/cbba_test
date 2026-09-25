@@ -95,19 +95,49 @@ const SETTING_LIMITS = { tasksPerCar: [1, LIMITS.tasks], lossPct: [0, 50], speed
 // never more than the tasks on the map; with an empty map, only the overall limit applies
 function maxTasksPerCar() { return state.tasks.length ? Math.min(LIMITS.tasks, state.tasks.length) : LIMITS.tasks; }
 
-// read the three inputs; returns an error message, or '' when all are valid
+// read the three inputs. Each valid value is stored on its own, so one bad box
+// never blocks the others. Returns the first problem, or '' when all are valid.
 function readSettings() {
   const perCar = Number($('setting-tasks-per-car').value);
   const loss = Number($('setting-loss').value);
   const speed = Number($('setting-speed').value);
-  if (!Number.isInteger(perCar) || perCar < 1 || perCar > maxTasksPerCar())
-    return `Tasks per car must be a whole number from 1 to ${maxTasksPerCar()} (the tasks on the map).`;
-  if (!Number.isFinite(loss) || loss < SETTING_LIMITS.lossPct[0] || loss > SETTING_LIMITS.lossPct[1])
-    return 'Value lost per second must be between 0 and 50 %.';
-  if (!Number.isFinite(speed) || speed < SETTING_LIMITS.speed[0] || speed > SETTING_LIMITS.speed[1])
-    return 'Car speed must be between 1 and 50 m/s.';
-  state.settings = { tasksPerCar: perCar, lossPct: loss, speed };
-  return '';
+  const problems = [];
+  if (Number.isInteger(perCar) && perCar >= 1 && perCar <= maxTasksPerCar()) state.settings.tasksPerCar = perCar;
+  else problems.push(`Tasks per car must be a whole number from 1 to ${maxTasksPerCar()} (the tasks on the map).`);
+  if (Number.isFinite(loss) && loss >= SETTING_LIMITS.lossPct[0] && loss <= SETTING_LIMITS.lossPct[1]) state.settings.lossPct = loss;
+  else problems.push('Value lost per second must be between 0 and 50 %.');
+  if (Number.isFinite(speed) && speed >= SETTING_LIMITS.speed[0] && speed <= SETTING_LIMITS.speed[1]) state.settings.speed = speed;
+  else problems.push('Car speed must be between 1 and 50 m/s.');
+  return problems[0] || '';
+}
+
+// when the player leaves a box (Tab, Enter, click elsewhere): move an out-of-range
+// value to the nearest allowed one and say so, so the box always shows what is used
+const SETTING_BOXES = {
+  'setting-tasks-per-car': { name: 'Tasks per car', unit: '', whole: true,
+    range: () => [1, maxTasksPerCar()], why: max => state.tasks.length ? ` (the tasks on the map)` : '' },
+  'setting-loss': { name: 'Value lost per second', unit: ' %', range: () => SETTING_LIMITS.lossPct, why: () => '' },
+  'setting-speed': { name: 'Car speed', unit: ' m/s', range: () => SETTING_LIMITS.speed, why: () => '' },
+};
+
+function onSettingCommit(evt) {
+  const box = SETTING_BOXES[evt.target.id], input = evt.target;
+  const [min, max] = box.range();
+  let v = Number(input.value), note = '';
+  if (input.value.trim() === '' || !Number.isFinite(v)) {
+    v = min; note = `${box.name} needs a number, so it was set to ${min}.`;
+  } else if (v > max) {
+    note = `${box.name} can be at most ${max}${box.unit}${box.why(max)}, so it was set to ${max}.`; v = max;
+  } else if (v < min) {
+    note = `${box.name} must be at least ${min}${box.unit}, so it was set to ${min}.`; v = min;
+  } else if (box.whole && !Number.isInteger(v)) {
+    v = Math.round(v); note = `${box.name} must be a whole number, so it was set to ${v}.`;
+  }
+  input.value = v;
+  if (evt.target.id === 'setting-tasks-per-car') state.wantedTasksPerCar = v;
+  $('settings-note').textContent = note;
+  $('settings-note').hidden = !note;
+  onSettingChange(evt);
 }
 
 // keep "tasks per car" within the tasks on the map, and the rules text in step
@@ -130,6 +160,7 @@ function fitTasksPerCar() {
 }
 
 function onSettingChange(evt) {
+  if (evt.type === 'input') $('settings-note').hidden = true;   // an old correction note is stale
   if (evt.target.id === 'setting-tasks-per-car') {
     const v = Number(evt.target.value);
     if (Number.isInteger(v) && v >= 1 && v <= LIMITS.tasks) state.wantedTasksPerCar = v;
@@ -201,6 +232,13 @@ function renderGuesses() {
   box.setAttribute('role', 'radiogroup');
   box.setAttribute('aria-label', 'Car you think will win');
   if (!state.cars.length) { box.innerHTML = '<span class="empty">Place at least two cars.</span>'; return; }
+  // same cars as before: update the buttons in place. Rebuilding them would swallow a
+  // click that is in progress (leaving a settings box refreshes the page mid-click).
+  const buttons = box.querySelectorAll('[data-car]');
+  if (buttons.length === state.cars.length) {
+    buttons.forEach((b, i) => { b.setAttribute('aria-checked', state.guess === i); b.disabled = !editing(); });
+    return;
+  }
   box.innerHTML = state.cars.map((_, i) =>
     `<button type="button" class="guess" role="radio" aria-checked="${state.guess === i}" data-car="${i}" data-testid="guess-${i + 1}" ${editing() ? '' : 'disabled'}>
        <i style="background:${carColor(i)}"></i>Car ${i + 1}</button>`).join('');
@@ -415,6 +453,9 @@ $('next-mission').addEventListener('click', nextMission);
 $('new-game').addEventListener('click', newGame);
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => state.result ? finish(state.result) : refresh());
 
-['setting-tasks-per-car', 'setting-loss', 'setting-speed'].forEach(id => $(id).addEventListener('input', onSettingChange));
+['setting-tasks-per-car', 'setting-loss', 'setting-speed'].forEach(id => {
+  $(id).addEventListener('input', onSettingChange);      // while typing: check, don't correct
+  $(id).addEventListener('change', onSettingCommit);     // when leaving the box: correct if needed
+});
 fitTasksPerCar();
 refresh();

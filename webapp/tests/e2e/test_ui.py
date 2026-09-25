@@ -231,11 +231,17 @@ def test_tasks_per_car_cannot_exceed_the_tasks_on_the_map(game: Page):
     # one task on the map: the setting drops from 2 to 1 by itself
     expect(game.get_by_test_id('tasks-per-car-max')).to_have_text('max 1')
     expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('1')
+    # while typing a too-high value: explained, and the race can't start
     game.get_by_test_id('setting-tasks-per-car').fill('3')
     expect(game.get_by_test_id('error')).to_have_text(
         'Tasks per car must be a whole number from 1 to 1 (the tasks on the map).')
-    game.get_by_test_id('guess-1').click()
     expect(game.get_by_test_id('run')).to_be_disabled()
+    # leaving the box (here: clicking a guess) corrects it to the maximum
+    game.get_by_test_id('guess-1').click()
+    expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('1')
+    expect(game.get_by_test_id('settings-note')).to_have_text(
+        'Tasks per car can be at most 1 (the tasks on the map), so it was set to 1.')
+    expect(game.get_by_test_id('run')).to_be_enabled()
 
 
 def test_speed_outside_the_limits_is_refused(game: Page):
@@ -255,3 +261,51 @@ def test_adding_tasks_brings_back_the_chosen_tasks_per_car(game: Page):
     click_map(game, 500, 100)
     click_map(game, 500, 500)                                 # 3 tasks now
     expect(game.get_by_test_id('setting-tasks-per-car')).to_have_value('2')
+
+
+def sent_game(page: Page):
+    """Start the race and return the JSON the browser sent to the server."""
+    with page.expect_request('**/api/games') as req:
+        page.get_by_test_id('run').click()
+    return req.value.post_data_json
+
+
+def test_too_many_tasks_per_car_is_set_to_the_maximum(game: Page):
+    # example map has 5 tasks; typing 6 and leaving the box sets it to 5
+    box = game.get_by_test_id('setting-tasks-per-car')
+    box.fill('6')
+    box.press('Tab')
+    expect(box).to_have_value('5')
+    expect(game.get_by_test_id('settings-note')).to_have_text(
+        'Tasks per car can be at most 5 (the tasks on the map), so it was set to 5.')
+    expect(game.get_by_test_id('rule-per-car')).to_have_text('5 tasks')
+    game.get_by_test_id('guess-1').click()
+    assert sent_game(game)['tasks_per_car'] == 5
+
+
+def test_speed_and_loss_reach_the_server(game: Page):
+    game.get_by_test_id('setting-speed').fill('25')
+    game.get_by_test_id('setting-loss').fill('4')
+    game.get_by_test_id('guess-1').click()
+    body = sent_game(game)
+    assert body['speed'] == 25
+    assert body['discount'] == 0.96
+    expect(game.get_by_test_id('rule-speed')).to_have_text('25 m/s')
+    expect(game.get_by_test_id('rule-loss')).to_have_text('4% per second')
+
+
+def test_one_bad_setting_does_not_freeze_the_others(game: Page):
+    # regression: an invalid tasks-per-car value used to block speed changes
+    game.get_by_test_id('setting-tasks-per-car').fill('6')       # still typing: not corrected yet
+    game.get_by_test_id('setting-speed').fill('25')
+    expect(game.get_by_test_id('rule-speed')).to_have_text('25 m/s')
+
+
+def test_out_of_range_speed_is_corrected_when_leaving_the_box(game: Page):
+    box = game.get_by_test_id('setting-speed')
+    box.fill('80')
+    box.press('Tab')
+    expect(box).to_have_value('50')
+    expect(game.get_by_test_id('settings-note')).to_have_text(
+        'Car speed can be at most 50 m/s, so it was set to 50.')
+    expect(game.get_by_test_id('rule-speed')).to_have_text('50 m/s')
