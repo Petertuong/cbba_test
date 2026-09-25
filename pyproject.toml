@@ -11,5 +11,3 @@ requires-python = ">=3.10"
 [tool.setuptools]
 packages = ["cbba"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]

@@ -29,16 +29,7 @@ cbba/
   transport.py    message delivery over a communication graph
   search_algo.py  communication graph and network depth (BFS)
   main.py         experiment: convergence for several communication ranges
-tests/
-  test_bundle.py       phase 1 unit tests
-  test_consensus.py    phase 2 decision-table coverage
-  test_integration.py  full multi-agent convergence
-  test_simulation.py   simulate(), points, agent speed
-  test_tie_break.py    equal bids go to the lower agent id
-  test_geometry.py     2D / 3D distance
-  test_search_algo.py  communication graph and BFS
 webapp/              CBBA Car Race: a web game built on the core (see webapp/README.md)
-docs/TEST_PLAN.md    test levels, techniques, acceptance scenarios, defects found
 ```
 
 # CBBA — Consensus-Based Bundle Algorithm

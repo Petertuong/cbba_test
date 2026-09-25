@@ -2,11 +2,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
-.pytest_cache/
 .claude/
 
-# playwright / pytest output
-test-results/
 *.egg-info/
-.coverage
-results/

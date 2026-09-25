@@ -26,19 +26,9 @@ From the repository root:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e . -r webapp/requirements-dev.txt   # server + test tools
+.venv/bin/pip install -e . -r webapp/requirements.txt
 cd webapp && env -u PYTHONPATH ../.venv/bin/uvicorn app.main:app --reload
 ```
 
 Open http://localhost:8000. (`env -u PYTHONPATH` keeps ROS 2's Python packages out of the
 app, if your shell sources ROS.)
-
-## Test it
-
-```bash
-../.venv/bin/playwright install chromium                          # once
-env -u PYTHONPATH ../.venv/bin/python -m pytest tests             # game rules, API, end-to-end
-```
-
-See [`../docs/TEST_PLAN.md`](../docs/TEST_PLAN.md) for the test levels, techniques and
-acceptance scenarios.
